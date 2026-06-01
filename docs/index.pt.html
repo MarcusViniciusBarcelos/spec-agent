@@ -1,235 +1,418 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-br" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>spec-agent — pare de deixar seu agente de código entregar código quebrado</title>
-<meta name="description" content="spec-agent adiciona gates de verificação, regras de projeto e aprendizado durável ao Claude Code, Copilot, Cursor e Codex — sem trocar seu agente. Instala via npx." />
+<title>spec-agent — done só deveria significar verificado</title>
+<meta name="description" content="Um gate de qualidade para o seu agente de código. O spec-agent não deixa Claude Code, Copilot, Cursor ou Codex finalizar trabalho que falha nos seus testes, contratos e regras de projeto. Instala via npx." />
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&f[]=general-sans@400,500,600&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
 <style>
   :root{
-    --bg:#0b0d10; --panel:#12161b; --panel2:#161b22; --line:#222a33;
-    --fg:#e6edf3; --mut:#9aa7b4; --dim:#6b7785;
-    --acc:#6ee7b7; --acc2:#7dd3fc; --warn:#fbbf24; --bad:#f87171;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    --bg: oklch(17% 0.022 268);
+    --bg2: oklch(21% 0.026 268);
+    --fg: oklch(94% 0.015 250);
+    --fg-soft: oklch(73% 0.025 255);
+    --fg-faint: oklch(58% 0.025 258);
+    --line: color-mix(in oklch, var(--fg) 14%, transparent);
+    --card: color-mix(in oklch, var(--fg) 5%, transparent);
+    --block: oklch(70% 0.20 28);
+    --pass: oklch(84% 0.17 150);
+    --term-bg: oklch(13% 0.02 268);
+  }
+  :root[data-theme="light"]{
+    --bg: oklch(95.5% 0.013 250);
+    --bg2: oklch(92.5% 0.016 250);
+    --fg: oklch(20% 0.035 268);
+    --fg-soft: oklch(40% 0.035 262);
+    --fg-faint: oklch(55% 0.03 260);
+    --line: color-mix(in oklch, var(--fg) 13%, transparent);
+    --card: color-mix(in oklch, var(--fg) 4%, transparent);
+    --block: oklch(54% 0.215 28);
+    --pass: oklch(50% 0.16 150);
+    --term-bg: oklch(22% 0.025 268);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
-  a{color:var(--acc2);text-decoration:none} a:hover{text-decoration:underline}
-  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
-  code,pre{font-family:var(--mono)}
-  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow:auto;font-size:14px;margin:14px 0}
-  pre .c{color:var(--dim)}
-  .pill{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:3px 11px;margin-bottom:18px}
-  .lang{text-align:right;font-family:var(--mono);font-size:12px;color:var(--dim);margin:0 0 4px}
-  .lang strong{color:var(--fg)}
-  header.hero{padding:80px 0 52px;border-bottom:1px solid var(--line);background:radial-gradient(1100px 380px at 50% -120px,rgba(110,231,183,.10),transparent)}
-  h1{font-size:48px;line-height:1.04;margin:6px 0 16px;letter-spacing:-.025em;max-width:780px}
-  h1 .hl{color:var(--acc)}
-  .tag{font-size:20px;color:var(--mut);max-width:700px;margin:0 0 26px}
-  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
-  .btn{display:inline-block;font-weight:600;font-size:15px;padding:11px 20px;border-radius:9px;border:1px solid var(--line)}
-  .btn.primary{background:var(--acc);color:#062018;border-color:var(--acc)}
-  .btn.ghost{background:var(--panel);color:var(--fg)}
-  section{padding:52px 0;border-bottom:1px solid var(--line)}
-  h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin:0 0 8px}
-  h3.big{font-size:28px;margin:0 0 8px;letter-spacing:-.01em}
-  .lead{font-size:18px;color:var(--mut);max-width:720px;margin-top:10px}
-  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
-  .card h4{margin:0 0 6px;font-size:16px}
-  .card p{margin:0;color:var(--mut);font-size:14.5px}
-  .tagk{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
-  .tagk.cheap{color:var(--acc);border-color:rgba(110,231,183,.4)}
-  .tagk.adv{color:var(--acc2);border-color:rgba(125,211,252,.4)}
-  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14.5px}
-  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
-  td .ok{color:var(--acc)} td .no{color:var(--bad)}
-  blockquote{margin:24px 0 0;padding:14px 18px;border-left:3px solid var(--acc);background:var(--panel);border-radius:0 10px 10px 0;color:var(--fg);font-size:16px}
-  footer{padding:40px 0 64px;color:var(--dim);font-size:14px}
-  footer a{color:var(--mut)}
-  .muted{color:var(--dim);font-size:13px;margin-top:10px}
-  .demo{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden;margin-top:24px}
-  .demo .row{padding:16px 20px;border-bottom:1px solid var(--line)}
-  .demo .row:last-child{border-bottom:0}
-  .demo .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
-  .demo pre{margin:0;border:0;background:transparent;padding:0;font-size:13.5px;line-height:1.7}
-  .del{color:var(--bad)} .add{color:var(--acc)} .cm{color:var(--dim)}
-  .gate{background:#160f12;border:1px solid rgba(248,113,113,.35);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:#fca5a5;margin-top:4px}
-  .gate.pass{background:#0e1611;border-color:rgba(110,231,183,.35);color:#86efac}
-  .flow{font-family:var(--mono);font-size:13px;color:var(--mut);line-height:1.5;white-space:pre;overflow:auto}
-  .flow b{color:var(--fg)} .flow .g{color:var(--acc)} .flow .r{color:var(--bad)}
-  @media(max-width:680px){h1{font-size:34px}.grid{grid-template-columns:1fr}}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:"General Sans",system-ui,sans-serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased;transition:background .5s,color .5s;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--block);color:var(--bg)}
+  #gl{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none}
+  .page{position:relative;z-index:1}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,72px)}
+  .mono{font-family:"JetBrains Mono",monospace}
+  .disp{font-family:"Clash Display",system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;line-height:.98}
+  .kick{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;letter-spacing:.28em;text-transform:uppercase;color:var(--block)}
+  code{font-family:"JetBrains Mono",monospace;font-size:.9em}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:26px 0}
+  .brand{font-family:"Clash Display";font-weight:700;font-size:22px;letter-spacing:-.01em}
+  .brand i{color:var(--block);font-style:normal}
+  .navr{display:flex;align-items:center;gap:22px;font-family:"JetBrains Mono";font-size:12.5px;color:var(--fg-faint)}
+  .navr a:hover{color:var(--fg)}
+  .lang strong{color:var(--fg)} .lang a{color:var(--fg-faint)}
+  .tg{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;background:var(--card);color:var(--fg-soft);transition:.25s}
+  .tg:hover{color:var(--fg);border-color:var(--fg-faint)}
+  .hero{min-height:clamp(560px,92vh,940px);display:flex;flex-direction:column;justify-content:center;padding:40px 0 64px;position:relative}
+  .hero h1{font-family:"Clash Display";font-weight:600;font-size:clamp(3.1rem,9.5vw,8.5rem);line-height:.92;letter-spacing:-.035em;margin:.28em 0 0;max-width:15ch}
+  .hero h1 em{font-style:normal;color:var(--block)}
+  .lede{font-size:clamp(1.05rem,1.9vw,1.4rem);color:var(--fg-soft);max-width:50ch;margin:1.5em 0 0}
+  .lede b{color:var(--fg);font-weight:600}
+  .cta{display:flex;gap:13px;flex-wrap:wrap;margin-top:2.1em;align-items:center}
+  .btn{font-family:"General Sans";font-weight:600;font-size:16px;padding:14px 28px;border-radius:999px;border:1.5px solid transparent;transition:transform .25s cubic-bezier(.2,.8,.2,1),background .25s,color .25s,border-color .25s;cursor:pointer}
+  .btn.solid{background:var(--block);color:var(--bg)}
+  .btn.solid:hover{transform:translateY(-3px)}
+  .btn.line{border-color:var(--line);color:var(--fg)}
+  .btn.line:hover{border-color:var(--fg);transform:translateY(-3px)}
+  .npx{margin-top:2.4em;display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;max-width:100%}
+  .npx .p{color:var(--block)} .npx code{color:var(--fg);overflow:auto}
+  .stamp{display:inline-flex;align-items:center;gap:.5em;font-family:"JetBrains Mono";font-weight:700;font-size:clamp(.78rem,1.4vw,1rem);letter-spacing:.16em;text-transform:uppercase;padding:.5em .95em;border:2.5px solid currentColor;border-radius:7px;position:relative;color:var(--block)}
+  .stamp::after{content:"";position:absolute;inset:3px;border:1px solid currentColor;border-radius:5px;opacity:.5}
+  .hero-stamp{position:absolute;top:18%;right:0;transform:rotate(-9deg);animation:thunk .6s 1.05s cubic-bezier(.2,.8,.2,1) both}
+  @media(max-width:840px){.hero-stamp{position:static;transform:rotate(-6deg);margin-top:1.3em}}
+  section{padding:clamp(38px,5vw,72px) 0;position:relative;background:color-mix(in oklch, var(--bg) 90%, transparent)}
+  .lab{font-family:"JetBrains Mono";font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:18px;display:inline-block}
+  h2.sec{font-family:"Clash Display";font-weight:600;font-size:clamp(2rem,5.2vw,3.8rem);line-height:1.0;letter-spacing:-.025em;margin:0;max-width:18ch}
+  h2.sec em{font-style:normal;color:var(--block)}
+  .lead{font-size:1.15rem;color:var(--fg-soft);max-width:60ch;margin:1em 0 0}
+  .grid2{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,6vw,80px);align-items:start;margin-top:clamp(32px,5vw,56px)}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
+  .term{background:var(--term-bg);color:oklch(92% 0.02 250);font-family:"JetBrains Mono";font-size:13.5px;line-height:1.7;padding:22px 24px;border-radius:16px;overflow:auto;white-space:pre-wrap;margin:0;border:1px solid var(--line);box-shadow:0 30px 80px -50px oklch(0% 0 0 / .7)}
+  .term .red{color:oklch(75% 0.16 28)} .term .grn{color:oklch(82% 0.14 150)} .term .dim{color:oklch(60% 0.02 258)}
+  .report{border-radius:18px;border:1px solid var(--line);overflow:hidden;margin-top:34px;background:var(--card)}
+  .report .step{padding:22px 26px;border-top:1px solid var(--line)} .report .step:first-child{border-top:0}
+  .report .tag{font-family:"JetBrains Mono";font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:11px}
+  .report pre{margin:0;font-family:"JetBrains Mono";font-size:13.5px;line-height:1.7;overflow:auto;color:var(--fg)}
+  .report .del{color:var(--block)} .report .add{color:var(--pass)} .report .cm{color:var(--fg-faint)}
+  .vd{font-family:"JetBrains Mono";font-size:12.5px;padding:10px 15px;border-radius:999px;display:inline-block;font-weight:500}
+  .vd.no{color:var(--block);border:1px solid color-mix(in oklch,var(--block) 45%,transparent);background:color-mix(in oklch,var(--block) 10%,transparent)}
+  .vd.ok{color:var(--pass);border:1px solid color-mix(in oklch,var(--pass) 45%,transparent);background:color-mix(in oklch,var(--pass) 10%,transparent)}
+  .mechs{margin-top:14px}
+  .mech{display:grid;grid-template-columns:auto 1fr auto;gap:clamp(16px,3vw,44px);align-items:baseline;padding:30px 0;border-top:1px solid var(--line);transition:padding-left .35s cubic-bezier(.2,.8,.2,1)}
+  .mech:last-child{border-bottom:1px solid var(--line)}
+  .mech:hover{padding-left:12px}
+  .mech .mn{font-family:"JetBrains Mono";font-size:13px;color:var(--block)}
+  .mech h3{font-family:"Clash Display";font-weight:600;font-size:clamp(1.4rem,2.8vw,2.1rem);margin:0;letter-spacing:-.02em}
+  .mech p{margin:.5em 0 0;color:var(--fg-soft);max-width:62ch;font-size:1.04rem}
+  .mech p em{color:var(--fg);font-style:italic}
+  .mech .role{font-family:"JetBrains Mono";font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--block);white-space:nowrap;padding-top:.4em}
+  .mech .role.adv{color:var(--fg-faint)}
+  @media(max-width:720px){.mech{grid-template-columns:auto 1fr}.mech .role{grid-column:2}}
+  .pull{font-family:"Clash Display";font-weight:500;font-size:clamp(1.7rem,4.2vw,3rem);line-height:1.08;letter-spacing:-.02em;max-width:20ch;margin:0}
+  .pull em{font-style:normal;color:var(--block)}
+  .by{display:block;font-family:"JetBrains Mono";font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);margin-top:1.3em;font-weight:400}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:1rem}
+  th,td{text-align:left;padding:16px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:"JetBrains Mono";font-weight:500;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint)}
+  td b{font-weight:600}
+  td .no{color:var(--block);font-family:"JetBrains Mono";font-size:.9em} td .ok{color:var(--pass);font-family:"JetBrains Mono";font-size:.9em}
+  .findings td:first-child{font-family:"Clash Display";font-weight:600;font-size:1.1rem;width:34%}
+  .links{display:flex;gap:22px;flex-wrap:wrap;font-family:"JetBrains Mono";font-size:13px;color:var(--fg-faint);margin-top:1.7em}
+  .links a{border-bottom:1px solid var(--line)} .links a:hover{color:var(--fg);border-color:var(--fg)}
+  .muted{color:var(--fg-faint);font-size:.92rem;margin-top:16px}
+  .muted a{border-bottom:1px solid var(--line)}
+  footer{padding:clamp(56px,8vw,110px) 0;border-top:1px solid var(--line);margin-top:40px;background:color-mix(in oklch, var(--bg) 90%, transparent)}
+  .avatar{width:clamp(92px,13vw,128px);height:clamp(92px,13vw,128px);border-radius:50%;object-fit:cover;border:1px solid var(--line);box-shadow:0 0 0 7px var(--card)}
+  footer .big{font-family:"Clash Display";font-weight:600;font-size:clamp(2.6rem,9vw,6.5rem);letter-spacing:-.035em;line-height:.95;margin:0 0 .35em}
+  footer .big em{font-style:normal;color:var(--block)}
+  footer .row{display:flex;gap:22px;flex-wrap:wrap;font-family:"JetBrains Mono";font-size:13px;color:var(--fg-faint);margin-top:2em}
+  footer .row a:hover{color:var(--fg)}
+  [data-rev]{opacity:0;transform:translateY(26px);transition:opacity .9s cubic-bezier(.2,.8,.2,1),transform .9s cubic-bezier(.2,.8,.2,1)}
+  [data-rev].in{opacity:1;transform:none}
+  @keyframes thunk{0%{opacity:0;transform:rotate(-9deg) scale(1.8)}55%{opacity:1}100%{opacity:1;transform:rotate(-9deg) scale(1)}}
+  @media(prefers-reduced-motion:reduce){[data-rev]{opacity:1;transform:none;transition:none}.hero-stamp{animation:none}}
+
+  /* engagement */
+  .progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--block);z-index:60;will-change:width}
+  .navbar{position:sticky;top:0;z-index:40;border-bottom:1px solid transparent;transition:background .3s,border-color .3s,backdrop-filter .3s}
+  .navbar.stuck{background:color-mix(in oklch,var(--bg) 80%,transparent);backdrop-filter:blur(14px);border-color:var(--line)}
+  .cue{display:inline-flex;align-items:center;gap:10px;margin-top:2.6em;font-family:"JetBrains Mono";font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-faint);transition:color .25s}
+  .cue:hover{color:var(--block)}
+  .cue .ch{width:8px;height:8px;border-right:1.5px solid var(--block);border-bottom:1.5px solid var(--block);transform:rotate(45deg);animation:bob 1.7s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:rotate(45deg) translate(0,0);opacity:.7}50%{transform:rotate(45deg) translate(3px,3px);opacity:1}}
+  .trust{display:flex;flex-wrap:wrap;gap:11px 28px;margin-top:2.6em;font-family:"JetBrains Mono";font-size:12.5px;color:var(--fg-faint)}
+  .trust span{display:inline-flex;align-items:center;gap:9px}
+  .trust b{color:var(--fg);font-weight:600} .trust i{width:5px;height:5px;border-radius:50%;background:var(--pass);display:inline-block}
+  .next{display:inline-flex;align-items:center;gap:9px;margin-top:34px;font-family:"JetBrains Mono";font-size:12.5px;letter-spacing:.04em;color:var(--fg-faint);border-bottom:1px solid var(--line);padding-bottom:4px;transition:color .25s,border-color .25s}
+  .next:hover{color:var(--block);border-color:var(--block)}
+  .fab{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(26px);z-index:45;display:flex;align-items:center;gap:14px;background:color-mix(in oklch,var(--bg) 78%,transparent);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:999px;padding:8px 8px 8px 18px;opacity:0;pointer-events:none;transition:opacity .4s,transform .4s;box-shadow:0 18px 50px -28px oklch(0% 0 0 /.6)}
+  .fab.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  .fab code{font-family:"JetBrains Mono";font-size:12.5px;color:var(--fg-soft)}
+  .fab .go{background:var(--block);color:var(--bg);border-radius:999px;padding:9px 17px;font-weight:600;font-size:14px;white-space:nowrap}
+  @media(max-width:620px){.fab code{display:none}.fab{padding:7px}}
 </style>
 </head>
 <body>
-
-<header class="hero">
-  <div class="wrap">
-    <div class="lang"><a href="index.html">EN</a> · <strong>PT</strong></div>
-    <span class="pill">npx @marcusbarcelos/spec-agent · MIT</span>
-    <h1>Pare de deixar seu agente de código <span class="hl">entregar código quebrado</span>.</h1>
-    <p class="tag">spec-agent adiciona gates de verificação, regras de projeto e aprendizado durável ao <strong>Claude Code, Copilot, Cursor e Codex</strong> — sem trocar seu agente.</p>
-    <div class="cta">
-      <a class="btn primary" href="#start">Começar</a>
-      <a class="btn ghost" href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub →</a>
+<canvas id="gl"></canvas>
+<div class="progress" id="progress"></div>
+<div class="page">
+<div class="navbar" id="navbar"><div class="wrap">
+  <nav>
+    <div class="brand">spec<i>·</i>agent</div>
+    <div class="navr">
+      <span class="lang"><a href="index.html">EN</a> · <strong>PT</strong></span>
+      <a href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub</a>
+      <button class="tg" id="theme" aria-label="alternar tema"><span id="tgi">◑</span> <span id="tgt">Claro</span></button>
     </div>
-<pre><span class="c"># scaffolda .spec/ + adapters no repo atual</span>
-npx @marcusbarcelos/spec-agent init --id meu-projeto --agents claude,agents-md</pre>
-  </div>
-</header>
-
-<section id="demo">
-  <div class="wrap">
-    <h2>Veja funcionar</h2>
-    <h3 class="big">O agente diz "done". O gate diz "ainda não".</h3>
-    <p class="lead">Não é um prompt. É um checkpoint determinístico entre o seu agente finalizar e o código entrar.</p>
-
-    <div style="margin-top:22px"><script src="https://asciinema.org/a/yO1ABlT2IFMdCOuV.js" id="asciicast-yO1ABlT2IFMdCOuV" async data-theme="monokai" data-rows="22"></script></div>
-
-    <div class="flow" style="margin-top:24px">
-o agente finaliza uma mudança
-        │
-        ▼
-  <b>gate do spec-agent</b>  ──  lint · typecheck · testes · invariantes do projeto
-        │
-   ┌────┴─────┐
-<span class="g">passa</span>       <span class="r">falha</span>
-   │           │
- <span class="g">✓ entra</span>   erro volta pro agente ─→ o agente corrige ─→ o gate roda de novo
+  </nav>
+</div></div>
+<div class="wrap">
+  <header class="hero">
+    <span class="kick" data-rev>Gate de qualidade para agentes de código</span>
+    <h1 class="disp" data-rev>Seu agente vai entregar código <em>quebrado</em>.</h1>
+    <div class="hero-stamp"><span class="stamp">✗ Bloqueado</span></div>
+    <p class="lede" data-rev>O spec-agent é o contrato que não deixa. Um gate determinístico, regras de projeto que ele de fato aplica, e aprendizado durável — para <b>Claude Code, Copilot, Cursor &amp; Codex</b>. Não substitui seu agente. Diz <b>não</b> pra ele.</p>
+    <div class="cta" data-rev>
+      <a class="btn solid" href="#start">Começar</a>
+      <a class="btn line" href="https://github.com/MarcusViniciusBarcelos/spec-agent">Ver o código</a>
     </div>
-
-    <div class="demo">
-      <div class="row">
-        <div class="lbl">Invariante do seu projeto: cada espaço em branco → um traço</div>
-        <div class="lbl" style="margin-top:10px">O diff final do agente — parece ok, entra errado</div>
-<pre><span class="del">- const slug = name.trim().replace(/\s+/g, "-")</span>  <span class="cm">// "a  b" → "a-b"  ✗ colapsa repetições</span></pre>
-      </div>
-      <div class="row">
-        <div class="lbl">gate do spec-agent (roda antes de o agente poder finalizar)</div>
-        <div class="gate">✗ FAILED — slug: whitespace invariant<br/>↳ erro volta pro agente, finalização bloqueada</div>
-      </div>
-      <div class="row">
-        <div class="lbl">O agente roda de novo e corrige</div>
-<pre><span class="add">+ const slug = name.trim().replace(/\s/g, "-")</span>   <span class="cm">// "a  b" → "a--b"  ✓</span></pre>
-        <div class="gate pass">✓ gate passou — a mudança pode entrar</div>
-      </div>
+    <div class="npx" data-rev><span class="mono p">$</span> <code class="mono">npx @marcusbarcelos/spec-agent init --id meu-projeto --agents claude</code></div>
+    <a class="cue" data-rev href="#demo"><span class="ch"></span> veja barrar um bug real</a>
+    <div class="trust" data-rev>
+      <span><i></i> <b>Gate</b> determinístico</span>
+      <span><i></i> demo de <b>30 segundos</b></span>
+      <span><i></i> benchmark <b>aberto</b>, tamper-isolated</span>
+      <span><i></i> <b>MIT</b> · roda no seu agente</span>
     </div>
-    <p class="muted">Sem o spec-agent, aquele primeiro diff entra. O agente achou que tinha terminado; o lint/typecheck/teste/invariante discordou — e o agente corrigiu antes de você ver o PR.</p>
+  </header>
+</div>
+
+<section id="demo"><div class="wrap">
+  <span class="lab" data-rev>01 — Prova</span>
+  <h2 class="sec" data-rev>O agente diz <em>done</em>. O gate diz: ainda não.</h2>
+  <p class="lead" data-rev>Um checkpoint determinístico entre o seu agente finalizar e o código entrar — não é um prompt. Veja ele barrar um bug real, devolver, e só passar depois de corrigido.</p>
+  <div data-rev style="margin:34px 0"><script src="https://asciinema.org/a/yO1ABlT2IFMdCOuV.js" id="asciicast-yO1ABlT2IFMdCOuV" async data-theme="monokai" data-rows="22"></script></div>
+  <div class="report" data-rev>
+    <div class="step"><div class="tag">Regra do seu projeto — cada espaço em branco vira um traço</div>
+<pre><span class="del">- const slug = name.trim().replace(/\s+/g, "-")</span>   <span class="cm">// "a  b" → "a-b"  ✗ colapsa repetições</span></pre></div>
+    <div class="step"><div class="tag">O gate roda antes de o agente poder finalizar</div>
+      <span class="vd no">SPEC-AGENT VERDICT: BLOCKED — slug whitespace invariant · finish blocked</span></div>
+    <div class="step"><div class="tag">O agente roda de novo e corrige</div>
+<pre><span class="add">+ const slug = name.trim().replace(/\s/g, "-")</span>    <span class="cm">// "a  b" → "a--b"  ✓</span></pre>
+      <span class="vd ok">SPEC-AGENT VERDICT: PASSED — done means verified</span></div>
   </div>
-</section>
+  <p class="muted">Sem o spec-agent, aquele primeiro diff entra — o agente achou que tinha terminado. Rode você mesmo em 30s: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a>.</p>
+  <a class="next" href="#thesis">Por que um gate vence um prompt melhor →</a>
+</div></section>
 
-<section id="why">
-  <div class="wrap">
-    <h2>A tese</h2>
-    <h3 class="big">Agentes de IA são rápidos — e confiantemente errados.</h3>
-    <p class="lead">spec-agent faz <strong>done</strong> significar: os testes passam, os contratos se sustentam, as regras do projeto são respeitadas e os erros recorrentes viram skills reaproveitáveis. É o <strong>contrato de qualidade entre seu repositório e seu agente de código</strong> — um tech lead automático que diz <em>"Não. Isso não passa."</em> Não é um prompt; é um checkpoint determinístico, medido com honestidade.</p>
+<section id="thesis"><div class="wrap grid2">
+  <div data-rev><span class="lab">A tese</span>
+    <p class="pull">Agentes de IA são rápidos. E também <em>confiantemente errados</em>.<span class="by">— um agente sem gate é um junior confiante demais</span></p></div>
+  <div data-rev>
+    <p class="lead" style="margin-top:0">Quando o modelo base já é capaz, prompt sozinho move pouco. A alavanca é <b>governança</b> — barrar o trabalho objetivamente errado e ensinar ao modelo seus invariantes, pra ele aplicá-los em vez de re-deduzi-los errado.</p>
+    <p class="lead">O spec-agent é o <b>contrato de qualidade entre seu repositório e seu agente de código</b>. O tech lead automático que diz <em style="color:var(--block)">"Não. Isso não passa."</em></p></div>
+</div></section>
+
+<section id="mechanisms"><div class="wrap">
+  <span class="lab" data-rev>02 — Por dentro</span>
+  <h2 class="sec" data-rev>Poucas peças. Cada uma para uma falha distinta.</h2>
+  <div class="mechs">
+    <div class="mech" data-rev><span class="mn">01</span><div><h3>Gate de verificação</h3><p>Um Stop-hook determinístico que barra o "done" enquanto lint, typecheck ou testes falham no que foi tocado. Pega o erro que o modelo não enxerga em si mesmo.</p></div><span class="role">Núcleo · ROI mais claro</span></div>
+    <div class="mech" data-rev><span class="mn">02</span><div><h3>Project learning &amp; skill-forge</h3><p>Vira um erro recorrente numa regra imperativa e reaproveitável que o modelo de fato aplica — onde, sem ela, ele <em>sabe a regra e a quebra mesmo assim</em>.</p></div><span class="role">O diferencial</span></div>
+    <div class="mech" data-rev><span class="mn">03</span><div><h3>Context-economy</h3><p>Disciplina de tokens em prompt, tool input e resposta. Um grafo de código no lugar de reler arquivos.</p></div><span class="role">Núcleo</span></div>
+    <div class="mech" data-rev><span class="mn">04</span><div><h3>Agent-council</h3><p>Revisão multi-perspectiva reservada a decisões ambíguas de alto risco — migrações de DB, quebra de contrato, segurança, arquitetura. Não para o dia a dia.</p></div><span class="role adv">Avançado</span></div>
   </div>
-</section>
+  <a class="next" href="#ci">Veja rodando no seu CI →</a>
+</div></section>
 
-<section id="mechanisms">
-  <div class="wrap">
-    <h2>O que tem dentro</h2>
-    <h3 class="big">Poucas peças, cada uma para uma falha distinta</h3>
-    <div class="grid">
-      <div class="card"><h4>gate de verificação <span class="tagk cheap">núcleo</span></h4><p>Um Stop-hook determinístico que barra o "done" enquanto lint/typecheck/testes falham no que foi tocado. Pega o erro que o modelo não enxerga em si mesmo. <strong>O ROI mais claro.</strong></p></div>
-      <div class="card"><h4>project learning &amp; skill-forge <span class="tagk cheap">diferencial</span></h4><p>Vira um erro recorrente do projeto numa regra imperativa e reaproveitável que o modelo de fato aplica — onde, sem ela, ele <em>sabe a regra e a viola mesmo assim</em>.</p></div>
-      <div class="card"><h4>context-economy <span class="tagk cheap">núcleo</span></h4><p>Disciplina de tokens em prompt, tool input e resposta. Um grafo de código no lugar de reler arquivos.</p></div>
-      <div class="card"><h4>agent-council <span class="tagk adv">avançado</span></h4><p>Uma revisão multi-perspectiva reservada para <strong>decisões ambíguas de alto risco</strong> — migrações de DB, quebra de contrato, segurança, arquitetura. Não para o dia a dia.</p></div>
-    </div>
+<section id="ci"><div class="wrap">
+  <span class="lab" data-rev>03 — CI / PR</span>
+  <h2 class="sec" data-rev>Faça <em>done</em> ser exigível, não um feeling.</h2>
+  <p class="lead" data-rev><code>spec-agent verify</code> roda seu gate e imprime um veredito que lê como code review — verde no CI, bloqueando no PR, com exit não-zero quando bloqueia.</p>
+  <div class="grid2">
+    <pre class="term" data-rev><span class="dim"># .github/workflows/spec-agent.yml</span>
+- run: npx @marcusbarcelos/spec-agent verify
 
-    <div class="demo" style="margin-top:22px">
-      <div class="row">
-        <div class="lbl">skill-forge — aprendizado durável, na prática</div>
-<pre><span class="cm">// sem a regra aprendida — o modelo até cita a regra, e a quebra:</span>
-<span class="del">- const d = dto.expirationDate ?? dto.expiration_date</span>  <span class="cm">// fallback defensivo (viola a regra do projeto)</span>
+<span class="red">SPEC-AGENT VERDICT: BLOCKED</span>
 
-<span class="cm">// com a skill no contexto:</span>
-<span class="add">+ const d = dto.expirationDate</span>                        <span class="cm">// corrige o tipo na origem, sem fallback</span></pre>
-      </div>
-    </div>
+  <span class="red">✗</span> domain contract  node --test
+      <span class="red">idempotency invariant failed: duplicate ledger entry for sale-1</span>
+
+<span class="dim">Blocked: 1 check(s) failed. Fix and re-run.</span>
+<span class="dim">Run summary: 1 check · 1 blocked · 0 passed · 127ms</span></pre>
+    <div data-rev>
+      <p class="lead" style="margin-top:0">Os checks vivem no <code>.spec/manifest.yaml</code> — seus testes, lint, typecheck, qualquer comando. É aqui que o spec-agent deixa de ser assistente e vira o <b>guardião do repositório</b>.</p>
+      <p class="muted">Demo rodável: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a> — um ledger de comissão que precisa ser idempotente por <code>sale_id</code>.</p></div>
   </div>
-</section>
+</div></section>
 
-<section id="measured">
-  <div class="wrap">
-    <h2>O que medimos</h2>
-    <h3 class="big">Um método reprodutível — e um primeiro sinal honesto</h3>
-    <p class="lead">Um benchmark pequeno e <strong>tamper-isolated</strong> (o agente nunca vê os checkers). É um <strong>método mais um primeiro sinal</strong>, não prova — N pequeno, dito abertamente. Pra onde aponta:</p>
-    <table>
-      <thead><tr><th>achado</th><th>sinal</th></tr></thead>
-      <tbody>
-        <tr><td><strong>O gate é o ganho concreto.</strong></td><td>Recuperou uma falha objetiva que o modelo entregou — tarefas-alvo foram de 80% → 100% via o fix-loop. Regras de prompt sozinhas moveram ~0 num modelo capaz.</td></tr>
-        <tr><td><strong>Conhecimento durável muda o comportamento.</strong></td><td>Uma regra de projeto aprendida flipou uma resposta errada pra certa — o modelo sabia a regra e a violou sem a skill.</td></tr>
-        <tr><td><strong>O nicho do council é calibração.</strong></td><td>Em tradeoffs ambíguos-mas-sãos ele nunca bloqueou à toa (0/4), onde um único pass bloqueou. Real, mas estreito — por isso "avançado".</td></tr>
-      </tbody>
-    </table>
-    <blockquote>Com um modelo base capaz, o diferencial aparece nas margens — no gate objetivo e no conhecimento durável do projeto, não em orquestração cara por padrão.</blockquote>
-    <p class="muted">Método, números e ressalvas completos: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/RESULTS.md">RESULTS</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/SKILLFORGE-RESULTS.md">SKILLFORGE</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/COUNCIL-RESULTS.md">COUNCIL</a>. N pequeno — indicativo, não prova estatística.</p>
-  </div>
-</section>
+<section id="measured"><div class="wrap">
+  <span class="lab" data-rev>04 — Evidência</span>
+  <h2 class="sec" data-rev>Um método reprodutível, e um primeiro sinal honesto.</h2>
+  <p class="lead" data-rev>Um benchmark pequeno e tamper-isolated — o agente nunca vê os checkers. Um <b>método mais um primeiro sinal</b>, não prova. N pequeno, dito abertamente.</p>
+  <table class="findings" data-rev>
+    <thead><tr><th>achado</th><th>sinal</th></tr></thead>
+    <tbody>
+      <tr><td>O gate é o ganho</td><td>Recuperou uma falha objetiva que o modelo entregou — tarefas-alvo foram de <b>80% → 100%</b> via o fix-loop. Regras de prompt sozinhas moveram ~0 num modelo capaz.</td></tr>
+      <tr><td>Conhecimento durável muda comportamento</td><td>Uma regra de projeto aprendida flipou uma resposta errada pra certa — o modelo sabia a regra e a violou sem a skill.</td></tr>
+      <tr><td>O nicho do council é calibração</td><td>Em tradeoffs ambíguos-mas-sãos ele nunca bloqueou à toa (<b>0/4</b>), onde um único pass bloqueou. Real, mas estreito.</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Método e ressalvas completos: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/RESULTS.md">RESULTS</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/SKILLFORGE-RESULTS.md">SKILLFORGE</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/COUNCIL-RESULTS.md">COUNCIL</a>. N pequeno — indicativo, não prova estatística.</p>
+  <a class="next" href="#agents">Funciona com o meu agente? →</a>
+</div></section>
 
-<section id="ci">
-  <div class="wrap">
-    <h2>CI / pull requests</h2>
-    <h3 class="big">Faça "done" ser exigível, não um feeling</h3>
-    <p class="lead"><code>spec-agent verify</code> roda o gate do seu projeto e imprime um veredito que lê como code review — verde no CI, bloqueando no PR, com exit não-zero quando bloqueia.</p>
-<pre><span class="c"># .github/workflows/spec-agent.yml</span>
-- run: npx @marcusbarcelos/spec-agent verify</pre>
-<pre style="color:#fca5a5;border-color:rgba(248,113,113,.32)">SPEC-AGENT VERDICT: BLOCKED
+<section id="agents"><div class="wrap">
+  <span class="lab" data-rev>05 — Alcance</span>
+  <h2 class="sec" data-rev>Funciona com seu agente. Um loss-model honesto.</h2>
+  <p class="lead" data-rev>Harness completo no Claude Code; em outros agentes roda degradado-mas-funcional, com as lacunas registradas no <code>loss_report</code> do manifest.</p>
+  <table data-rev>
+    <thead><tr><th>capacidade</th><th>Claude Code</th><th>outros agentes</th></tr></thead>
+    <tbody>
+      <tr><td><b>gate de verificação</b></td><td>Stop hook</td><td>git pre-commit / CI</td></tr>
+      <tr><td><b>aprendizado durável</b></td><td>skills + memória nativas</td><td><code>.spec/learning/</code></td></tr>
+      <tr><td><b>multi-agent (council)</b></td><td>subagents nativos</td><td>simulação single-thread</td></tr>
+      <tr><td><b>grafo de código</b></td><td>graphify CLI</td><td>graphify CLI</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Enhancers específicos de um agente (claude-mem, superpowers, rtk, graphify) são opcionais — nunca dependências.</p>
+</div></section>
 
-  ✗ domain contract  node --test
-      idempotency invariant failed: duplicate ledger entry for sale-1
-
-Blocked: 1 check(s) failed. Fix and re-run `spec-agent verify`.</pre>
-    <p class="muted">Os checks vivem no <code>.spec/manifest.yaml</code> — seus testes, lint, typecheck, qualquer comando. É aqui que o spec-agent deixa de ser só assistente e vira o <strong>guardião do repositório</strong>. Demo rodável: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a>.</p>
-  </div>
-</section>
-
-<section id="agents">
-  <div class="wrap">
-    <h2>Funciona com seu agente</h2>
-    <h3 class="big">Um loss-model honesto, não promessa vazia</h3>
-    <p class="lead">Harness completo no Claude Code; em outros agentes roda <strong>degradado-mas-funcional</strong>, com as lacunas registradas no <code>loss_report</code> do manifest.</p>
-    <table>
-      <thead><tr><th>capacidade</th><th>Claude Code</th><th>outros agentes</th></tr></thead>
-      <tbody>
-        <tr><td>gate de verificação</td><td>Stop hook</td><td>git pre-commit / CI</td></tr>
-        <tr><td>aprendizado durável</td><td>skills + memória nativas</td><td><code>.spec/learning/</code></td></tr>
-        <tr><td>multi-agent (council)</td><td>subagents nativos</td><td>simulação single-thread</td></tr>
-        <tr><td>grafo de código</td><td>graphify CLI</td><td>graphify CLI</td></tr>
-      </tbody>
-    </table>
-    <p class="muted">Enhancers específicos de um agente (claude-mem, superpowers, rtk, graphify) são opcionais — nunca dependências.</p>
-  </div>
-</section>
-
-<section id="start">
-  <div class="wrap">
-    <h2>Começar</h2>
-    <h3 class="big">Três comandos</h3>
-<pre><span class="c"># scaffolda .spec/ + adapters</span>
+<section id="start"><div class="wrap">
+  <span class="lab" data-rev>06 — Começar</span>
+  <h2 class="sec" data-rev>Três comandos.</h2>
+  <pre class="term" data-rev style="margin-top:32px"><span class="dim"># scaffolda .spec/ + adapters no repo atual</span>
 npx @marcusbarcelos/spec-agent init --id meu-projeto --agents claude,agents-md
 
-<span class="c"># re-projeta os adapters quando o engine evolui (não toca seu estado durável)</span>
+<span class="dim"># re-projeta adapters quando o engine evolui (não toca seu estado durável)</span>
 npx @marcusbarcelos/spec-agent sync
 
-<span class="c"># roda o gate você mesmo (CI / PR) — veredito + exit não-zero se bloquear</span>
+<span class="dim"># roda o gate você mesmo (CI / PR) — veredito + exit não-zero se bloquear</span>
 npx @marcusbarcelos/spec-agent verify</pre>
-    <p class="lead">Requer Node ≥ 20. O harness roda <strong>dentro do agente de código que você já usa</strong>.</p>
-  </div>
-</section>
+  <p class="muted">Requer Node ≥ 20. O harness roda dentro do agente de código que você já usa.</p>
+</div></section>
 
-<footer>
-  <div class="wrap">
-    <strong>spec-agent</strong> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/LICENSE">MIT</a> © 2026 Marcus Vinicius Barcelos ·
-    <a href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub</a> ·
-    <a href="https://www.npmjs.com/package/@marcusbarcelos/spec-agent">npm</a>
-    <p class="muted">Feito para rodar <em>junto</em> do agente de código que você já usa — Claude Code, Copilot, Cursor, Codex.</p>
+<section id="author"><div class="wrap">
+  <span class="lab" data-rev>07 — Autor</span>
+  <div class="grid2" style="margin-top:clamp(28px,4vw,48px);align-items:center">
+    <div data-rev style="display:flex;gap:26px;align-items:center;flex-wrap:wrap">
+      <img class="avatar" src="https://github.com/MarcusViniciusBarcelos.png?size=256" alt="Marcus Vinicius Barcelos" width="128" height="128" loading="lazy" />
+      <div>
+        <p class="pull" style="font-size:clamp(1.5rem,3vw,2.2rem);margin:0">Marcus Vinicius Barcelos</p>
+        <span class="by" style="margin-top:.7em">Engenheiro de Software Sênior</span>
+      </div>
+    </div>
+    <div data-rev>
+      <p class="lead" style="margin-top:0">Engenheiro de software sênior — graduado em Análise e Desenvolvimento de Sistemas, pós-graduando em Engenharia de IA Aplicada. O spec-agent foi destilado e sanitizado de um harness de governança construído para uma base de código real em produção, não de um quadro branco.</p>
+      <div class="links"><a href="https://github.com/MarcusViniciusBarcelos">GitHub ↗</a><a href="https://www.npmjs.com/~marcusbarcelos">npm ↗</a></div>
+    </div>
   </div>
-</footer>
+</div></section>
 
+<footer><div class="wrap">
+  <p class="big" data-rev>Done devia significar<br/><em>verificado</em>.</p>
+  <div class="cta"><a class="btn solid" href="https://www.npmjs.com/package/@marcusbarcelos/spec-agent">Instalar do npm</a><a class="btn line" href="https://github.com/MarcusViniciusBarcelos/spec-agent">★ Star no GitHub</a></div>
+  <div class="row"><span>spec-agent</span><a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/LICENSE">MIT</a><span>© 2026 Marcus Vinicius Barcelos</span><span>Feito para rodar junto de Claude Code · Copilot · Cursor · Codex</span></div>
+</div></footer>
+
+</div>
+
+<div class="fab" id="fab"><code>npx @marcusbarcelos/spec-agent</code> <a class="go" href="#start">Começar</a></div>
+
+<script>
+  const root = document.documentElement, tgt = document.getElementById('tgt'), tgi = document.getElementById('tgi');
+  let theme = localStorage.getItem('spec-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const applyTheme = (t) => { root.dataset.theme = t; tgt.textContent = t === 'dark' ? 'Claro' : 'Escuro'; tgi.textContent = t === 'dark' ? '◑' : '◐'; if (window.__setGLTheme) window.__setGLTheme(t); };
+  applyTheme(theme);
+  document.getElementById('theme').onclick = () => { theme = root.dataset.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('spec-theme', theme); applyTheme(theme); };
+  const io = new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12,rootMargin:'0px 0px -7% 0px'});
+  document.querySelectorAll('[data-rev]').forEach((el,i)=>{ if(el.closest('.hero')) el.style.transitionDelay=(i*.09)+'s'; io.observe(el); });
+
+  const progress=document.getElementById('progress'), navbar=document.getElementById('navbar'), fab=document.getElementById('fab');
+  const onScroll=()=>{ const h=document.documentElement, max=h.scrollHeight-h.clientHeight; progress.style.width=(max>0?h.scrollTop/max*100:0)+'%'; navbar.classList.toggle('stuck',h.scrollTop>40); fab.classList.toggle('show',h.scrollTop>innerHeight*0.85); };
+  addEventListener('scroll',onScroll,{passive:true}); onScroll();
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  const canvas = document.getElementById('gl');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:'high-performance'}); }
+  catch(e){ canvas.style.display='none'; }
+
+  if (renderer) {
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(56, innerWidth/innerHeight, 0.1, 100);
+    camera.position.z = 9.6;
+
+    const N = 1250, range = 24;
+    const pos = new Float32Array(N*3), seed = new Float32Array(N), valid = new Float32Array(N);
+    for (let i=0;i<N;i++){
+      const r = Math.pow(Math.random(),0.55)*7.0, a = Math.random()*Math.PI*2;
+      pos[i*3]   = Math.cos(a)*r;
+      pos[i*3+1] = Math.sin(a)*r * 0.7;
+      pos[i*3+2] = Math.random()*range;
+      seed[i] = Math.random();
+      valid[i] = Math.random() < 0.86 ? 1 : 0;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    geo.setAttribute('aSeed', new THREE.BufferAttribute(seed,1));
+    geo.setAttribute('aValid', new THREE.BufferAttribute(valid,1));
+
+    const uni = {
+      uTime:{value:0}, uSize:{value:0},
+      uBase:{value:new THREE.Color()}, uPass:{value:new THREE.Color()}, uBlock:{value:new THREE.Color()}, uMax:{value:0.3}
+    };
+    const mat = new THREE.ShaderMaterial({
+      uniforms: uni, transparent:true, depthWrite:false, blending:THREE.NormalBlending,
+      vertexShader:`
+        uniform float uTime, uSize; attribute float aSeed, aValid;
+        uniform vec3 uBase, uPass, uBlock; varying vec3 vC; varying float vA;
+        void main(){
+          float range = 24.0, speed = 1.15;
+          float z = mod(position.z + uTime*speed + aSeed*range, range) - range*0.5;
+          vec2 xy = position.xy;
+          float near = 1.0 - smoothstep(0.0, 3.4, abs(z));
+          xy += normalize(xy + 0.0001) * (1.0 - aValid) * near * 0.8;
+          vec4 mv = modelViewMatrix * vec4(vec3(xy, z), 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = uSize * (1.0 / max(0.1, -mv.z));
+          vec3 c = uBase;
+          if (z > 0.2) c = mix(uBlock, uPass, aValid);
+          c = mix(c, c*1.06, near);
+          vC = c;
+          vA = clamp(1.0 - abs(z)/(range*0.5), 0.0, 1.0);
+        }`,
+      fragmentShader:`
+        precision mediump float; varying vec3 vC; varying float vA; uniform float uMax;
+        void main(){
+          vec2 uv = gl_PointCoord - 0.5; float d = length(uv);
+          if (d > 0.5) discard;
+          float a = smoothstep(0.5, 0.0, d) * vA * uMax;
+          gl_FragColor = vec4(vC, a);
+        }`
+    });
+    const pts = new THREE.Points(geo, mat);
+    scene.add(pts);
+
+    window.__setGLTheme = (t) => {
+      if (t === 'dark') { uni.uBase.value.set('#444d70'); uni.uPass.value.set('#79c79c'); uni.uBlock.value.set('#e08573'); uni.uMax.value = 0.34; }
+      else { uni.uBase.value.set('#b0b6ca'); uni.uPass.value.set('#4f9b72'); uni.uBlock.value.set('#cc6451'); uni.uMax.value = 0.22; }
+    };
+    window.__setGLTheme(document.documentElement.dataset.theme);
+
+    let mx=0, my=0, tx=0, ty=0;
+    addEventListener('pointermove', e => { mx = (e.clientX/innerWidth-0.5); my = (e.clientY/innerHeight-0.5); });
+    function resize(){ renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); uni.uSize.value = Math.min(innerWidth,1500)/30; }
+    addEventListener('resize', resize); resize();
+
+    let last = 0, paused = false;
+    document.addEventListener('visibilitychange', () => paused = document.hidden);
+    function frame(t){
+      requestAnimationFrame(frame);
+      if (paused) return;
+      const dt = Math.min(0.05, (t-last)/1000 || 0); last = t;
+      uni.uTime.value += reduce ? 0 : dt;
+      tx += (mx - tx)*0.025; ty += (my - ty)*0.025;
+      pts.rotation.y = tx*0.18; pts.rotation.x = ty*0.12;
+      camera.position.x = tx*0.55; camera.position.y = -ty*0.4; camera.lookAt(0,0,0);
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(frame);
+  }
+</script>
 </body>
 </html>
