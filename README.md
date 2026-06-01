@@ -1,106 +1,134 @@
 # spec-agent
 
-> Um harness **governado** para o seu agente de código — Claude Code, Copilot, Codex, Cursor. Instalável via `npx`: instala no seu repo uma arquitetura de IA (council, context-economy, project-learning, skill-forge e um **gate de verificação**) e projeta os adapters para cada agente.
+> **Stop letting your coding agent ship broken code.** `spec-agent` adds verification gates, project rules, and durable learning to **Claude Code, Copilot, Cursor, and Codex** — without replacing your agent. Install via `npx`.
 
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+[![npm](https://img.shields.io/npm/v/@marcusbarcelos/spec-agent.svg)](https://www.npmjs.com/package/@marcusbarcelos/spec-agent)
 
-`spec-agent` não é mais um framework de prompt. É a camada de **governança** que sobra quando o modelo já é capaz: regras que cabem no contexto, um **gate determinístico** que barra o que o modelo não vê, e um **loop de aprendizado** que vira conhecimento durável do projeto. Roda junto do agente de código que você já usa.
+It's not another prompt framework. It's the **governance layer** that's left when the model is already capable: a deterministic gate that blocks what the model can't see, project rules it actually applies, and a learning loop that turns recurring mistakes into durable, reusable knowledge — running inside the agent you already use.
 
 ---
+
+## See it work
+
+The agent says "done." The gate says "not yet." It's a deterministic checkpoint between your agent finishing and the code landing — not a prompt.
+
+```
+agent finishes a change
+        │
+        ▼
+  spec-agent gate  ──  lint · typecheck · tests · project invariants
+        │
+   ┌────┴─────┐
+ pass        fail
+   │           │
+ ✓ lands   error handed back to the agent ─→ agent fixes ─→ gate re-runs
+```
+
+A concrete before/after — your project's invariant is "each whitespace becomes one dash":
+
+```diff
+  // the agent's final diff — looks fine, ships wrong:
+- const slug = name.trim().replace(/\s+/g, "-")   // "a  b" → "a-b"  ✗ collapses runs
+
+  // spec-agent gate:
+  //   ✗ FAILED — slug: whitespace invariant — finish blocked, error returned to the agent
+
+  // the agent re-runs and corrects it:
++ const slug = name.trim().replace(/\s/g, "-")    // "a  b" → "a--b"  ✓
+  //   ✓ gate passed — change can land
+```
+
+Without spec-agent, that first diff ships. The agent thought it was done; the gate disagreed — and the agent fixed it before you ever saw the PR.
 
 ## Quickstart
 
 ```bash
-# scaffolda .spec/ + adapters no repo atual
-npx @marcusbarcelos/spec-agent init --id meu-projeto --agents claude,agents-md
+# scaffold .spec/ + adapters into the current repo
+npx @marcusbarcelos/spec-agent init --id my-project --agents claude,agents-md
 
-# re-projeta os adapters quando o engine evolui (não toca seu estado durável)
+# re-project adapters when the engine evolves (never touches your durable state)
 npx @marcusbarcelos/spec-agent sync
 
-# adiciona um agente depois do init (re-projeta tudo, preserva seu estado durável)
+# add an agent later (re-projects everything, preserves your durable state)
 npx @marcusbarcelos/spec-agent sync --agents copilot
 ```
 
-Pré-requisito: Node ≥ 20.
+Requires Node ≥ 20.
 
-## Modelo: thin + sync
+## What's inside
 
-O **engine** (regras + skills de governança) viaja no pacote. O seu repo recebe só:
+| Mechanism | What it does | Priority |
+|---|---|---|
+| **verification gate** | A deterministic Stop-hook that blocks "done" while lint/typecheck/tests fail on what was touched. Catches the error the model can't see in itself. | **core — clearest ROI** |
+| **project learning & skill-forge** | Turns a recurring project mistake into an imperative, reusable rule the model actually applies — where, without it, it *knows the rule and breaks it anyway*. | **the long-term differentiator** |
+| **context-economy** | Token discipline in prompt, tool input, and output. A code graph instead of re-reading files. | core |
+| **agent-council** | Multi-perspective review reserved for **high-risk, ambiguous calls** (DB migrations, contract breaks, security, architecture). Not for everyday turns. | advanced |
 
-- os **adapters** por agente (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) — marcados `GENERATED`, regeneráveis;
-- as **skills do engine** no local nativo do agente (`.claude/skills/`) onde houver suporte;
-- o **estado durável** do projeto em `.spec/` (`manifest.yaml`, `learning/`, `skills/`).
+### skill-forge — durable learning, in action
 
-`sync` re-projeta os adapters a partir do engine atualizado e **nunca** toca `.spec/learning/` nem `.spec/skills/` — seu conhecimento acumulado é seu.
+```diff
+  // without the learned rule — the model even cites it, then breaks it:
+- const d = dto.expirationDate ?? dto.expiration_date   // defensive fallback, violates the project rule
+
+  // with the skill in context:
++ const d = dto.expirationDate                          // fix the type at the source, no fallback
+```
+
+## What we measured
+
+A small, reproducible, **tamper-isolated** benchmark (the agent never sees the checkers). It's a **method plus a first signal**, not proof — small N, stated openly.
+
+- **The gate is the concrete win.** It recovered an objective failure the model shipped — targeted tasks went **80% → 100%** via the fix-loop. Prompt rules alone moved ~0 on a capable model.
+- **Durable knowledge changes behavior.** A learned project rule flipped a wrong answer to right — the model knew the rule and violated it without the skill.
+- **Council's niche is calibration.** On ambiguous-but-sound trade-offs it never false-blocked (**0/4**), where a single pass did. Real, but narrow — hence "advanced."
+
+> With a capable base model, the differential shows at the margins — in the objective gate and durable project knowledge, not in expensive orchestration by default.
+
+Full method, numbers, and caveats: [RESULTS](./bench/RESULTS.md) · [SKILLFORGE-RESULTS](./bench/SKILLFORGE-RESULTS.md) · [COUNCIL-RESULTS](./bench/COUNCIL-RESULTS.md). Small N — indicative, not statistical proof.
+
+## thin + sync model
+
+The **engine** (rules + governance skills) ships inside the package. Your repo only holds:
+
+- the **adapters** per agent (`CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`) — marked `GENERATED`, regenerable;
+- the engine's skills in the agent's native location (`.claude/skills/`) where supported;
+- your project's **durable state** in `.spec/` (`manifest.yaml`, `learning/`, `skills/`).
+
+`sync` re-projects the adapters from the updated engine and **never** touches `.spec/learning/` or `.spec/skills/` — the knowledge you accumulate is yours.
 
 ```
-seu-repo/
-├─ CLAUDE.md                       # adapter GENERATED (Claude Code)
-├─ AGENTS.md                       # adapter GENERATED (Codex/genérico)
-├─ .github/copilot-instructions.md # adapter GENERATED (Copilot)
-├─ .claude/skills/                 # skills do engine, no local nativo do agente
-└─ .spec/                          # SEU estado durável (sync nunca toca)
-   ├─ manifest.yaml                # id, agentes, loss_report
+your-repo/
+├─ CLAUDE.md                       # GENERATED adapter (Claude Code)
+├─ AGENTS.md                       # GENERATED adapter (Codex / generic)
+├─ .github/copilot-instructions.md # GENERATED adapter (Copilot)
+├─ .claude/skills/                 # engine skills, in the agent's native location
+└─ .spec/                          # YOUR durable state (sync never touches)
+   ├─ manifest.yaml
    ├─ learning/                    # lessons, pitfalls, patterns, glossary, _pending/
-   └─ skills/                      # skills geradas pelo skill-forge
+   └─ skills/                      # skills generated by skill-forge
 ```
 
-## Os mecanismos
+## Works with your agent (honest loss-model)
 
-O harness são cinco peças, cada uma resolvendo uma falha distinta:
+Full harness on Claude Code; on other agents it runs **degraded-but-functional**, with the gaps written down in the manifest's `loss_report`.
 
-| Mecanismo | O que faz | Custo |
+| capability | Claude Code | other agents |
 |---|---|---|
-| **gate de verificação** | Stop-hook determinístico que barra finalizar com lint/typecheck falho no que foi tocado. Pega o erro que o modelo não enxerga sozinho. | barato |
-| **skill-forge** | Vira erro recorrente do projeto em skill imperativa reutilizável. Conhecimento durável > memória que o modelo "sabe mas não aplica". | barato |
-| **context-economy** | Disciplina de tokens em prompt, tool input e resposta. Grafo de código no lugar de reler arquivos. | barato |
-| **project-learning** | Captura sinais de aprendizado em `_pending/` e promove para `learning/`. | barato |
-| **agent-council** | Painel multi-persona para decisão ambígua de alto risco. Calibra contra o falso-bloqueio. | seletivo |
+| verification gate | Stop hook | git pre-commit / CI |
+| durable learning | native skills + memory | `.spec/learning/` |
+| multi-agent (council) | native subagents | single-thread simulation |
+| code graph | graphify CLI | graphify CLI |
 
-## O que medimos
-
-Medimos o diferencial do harness honestamente, com ground-truth objetivo e **tamper-isolated** (o agente nunca vê os checkers). O resultado aponta onde a governança rende de verdade:
-
-- **O gate pega o que o modelo não vê.** Quando uma mudança tropeça numa armadilha, o gate barra e o fix recupera — **recuperação completa nas tarefas-alvo (80%→100%)**. O mecanismo mais barato e o de maior retorno.
-- **Conhecimento durável muda o comportamento.** Uma regra do seu projeto, capturada como skill imperativa, faz o agente aplicá-la — onde, sem ela, ele *conhece a regra e ainda assim a viola*. Saber ≠ aplicar.
-- **O council calibra o que é ambíguo.** Num painel de perspectivas independentes, decisão de alto risco não é aprovada no susto nem bloqueada por excesso de zelo: **zero falsos-bloqueios** em tradeoffs legítimos, onde um único pass erra para um dos lados.
-
-Métodos, números completos e ressalvas honestas: [RESULTS](./bench/RESULTS.md) · [COUNCIL-RESULTS](./bench/COUNCIL-RESULTS.md) · [SKILLFORGE-RESULTS](./bench/SKILLFORGE-RESULTS.md).
-
-## Funciona com qualquer agente (loss-model honesto)
-
-O harness completo roda no Claude Code; em outros agentes roda **degradado-mas-funcional**, com as perdas registradas explicitamente no `loss_report` do manifest. Ninguém mais formaliza esse loss-model.
-
-| Capacidade | Claude Code | Outros agentes |
-|---|---|---|
-| multi-agent (council/skill-forge) | nativo (subagents) | simulação single-thread |
-| memória cross-sessão | claude-mem (enhancer) | `.spec/learning/` + memória nativa |
-| workflows estruturados | superpowers (enhancer) | protocolos inlined |
-| economia de tokens | rtk/caveman (enhancer) | disciplina via regra |
-| grafo de código | graphify (CLI) | graphify (mesma CLI) |
-| gate de verificação | Stop hook | git pre-commit / CI |
-
-Ferramentas específicas de um agente (claude-mem, superpowers, rtk, caveman) são **enhancers opcionais**, não dependências.
-
-## Benchmark
-
-Um micro-benchmark reprodutível mede o diferencial em 3 condições (baseline / rules-only / full-harness) e 3 métricas (success rate, tokens/tarefa, gate-catch). Os checkers de ground-truth são **tamper-isolated**: o agente nunca vê os testes.
-
-O benchmark roda **dentro do seu agente de código**: o agente resolve as tarefas, e os checkers as avaliam fora de banda.
-
-```bash
-node bench/score-batch.js solutions.json   # pass-rate; o agente nunca viu os checkers
-```
-
-Honestidade: N pequeno (indicativo, não prova estatística); o full-harness **adiciona** tokens (prompt + fix-loop) e as tabelas mostram os dois lados; tarefas e checkers são abertos. A suíte de testes do bench roda com cliente **mockado** (CI-safe).
+Agent-specific enhancers (claude-mem, superpowers, rtk, graphify) are optional — never dependencies.
 
 ## Status
 
-**v1** — `init` / `sync` (Claude Code / AGENTS.md / Copilot) + benchmark + landing page. Veja [`examples/hello-project/`](./examples/hello-project/) para uma árvore scaffoldada.
+**v1** — `init` / `sync` (Claude Code / AGENTS.md / Copilot) + reproducible benchmark + landing page. See [`examples/hello-project/`](./examples/hello-project/) for a scaffolded tree.
 
-**Roadmap** — Cursor / Codex / Gemini; promoção automática de `_pending` → `learning`; mais controles no benchmark do council.
+**Roadmap** — Cursor / Codex / Gemini adapters; auto-promotion of `_pending` → `learning`; proof on larger real repos (TS + tests, Python + mypy/pytest).
 
-## Licença
+## License
 
-[MIT](./LICENSE) © 2026 Barcelos
+[MIT](./LICENSE) © 2026 Marcus Vinicius Barcelos
