@@ -3,152 +3,251 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>spec-agent — stop letting your coding agent ship broken code</title>
-<meta name="description" content="spec-agent adds verification gates, project rules, and durable learning to Claude Code, Copilot, Cursor, and Codex — without replacing your agent. Install via npx." />
+<title>spec-agent — done should mean verified</title>
+<meta name="description" content="A quality gate for your coding agent. spec-agent won't let Claude Code, Copilot, Cursor or Codex finish work that fails your tests, contracts and project rules. Install via npx." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0b0d10; --panel:#12161b; --panel2:#161b22; --line:#222a33;
-    --fg:#e6edf3; --mut:#9aa7b4; --dim:#6b7785;
-    --acc:#6ee7b7; --acc2:#7dd3fc; --warn:#fbbf24; --bad:#f87171;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    --paper: oklch(97.8% 0.012 80);
+    --paper-2: oklch(95.4% 0.015 78);
+    --ink: oklch(24% 0.026 52);
+    --ink-soft: oklch(42% 0.022 55);
+    --ink-faint: oklch(56% 0.018 62);
+    --line: oklch(86% 0.022 72);
+    --red: oklch(52% 0.205 27);
+    --green: oklch(46% 0.115 150);
+    --term: oklch(26% 0.022 58);
+    --term-fg: oklch(90% 0.02 80);
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --ease: cubic-bezier(.2,.75,.2,1);
+    --gut: clamp(20px, 5vw, 64px);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
-  a{color:var(--acc2);text-decoration:none} a:hover{text-decoration:underline}
-  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
-  code,pre{font-family:var(--mono)}
-  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow:auto;font-size:14px;margin:14px 0}
-  pre .c{color:var(--dim)}
-  .pill{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:3px 11px;margin-bottom:18px}
-  .lang{text-align:right;font-family:var(--mono);font-size:12px;color:var(--dim);margin:0 0 4px}
-  .lang strong{color:var(--fg)}
-  header.hero{padding:80px 0 52px;border-bottom:1px solid var(--line);background:radial-gradient(1100px 380px at 50% -120px,rgba(110,231,183,.10),transparent)}
-  h1{font-size:48px;line-height:1.04;margin:6px 0 16px;letter-spacing:-.025em;max-width:780px}
-  h1 .hl{color:var(--acc)}
-  .tag{font-size:20px;color:var(--mut);max-width:700px;margin:0 0 26px}
-  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
-  .btn{display:inline-block;font-weight:600;font-size:15px;padding:11px 20px;border-radius:9px;border:1px solid var(--line)}
-  .btn.primary{background:var(--acc);color:#062018;border-color:var(--acc)}
-  .btn.ghost{background:var(--panel);color:var(--fg)}
-  section{padding:52px 0;border-bottom:1px solid var(--line)}
-  h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin:0 0 8px}
-  h3.big{font-size:28px;margin:0 0 8px;letter-spacing:-.01em}
-  .lead{font-size:18px;color:var(--mut);max-width:720px;margin-top:10px}
-  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
-  .card h4{margin:0 0 6px;font-size:16px}
-  .card p{margin:0;color:var(--mut);font-size:14.5px}
-  .tagk{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
-  .tagk.cheap{color:var(--acc);border-color:rgba(110,231,183,.4)}
-  .tagk.adv{color:var(--acc2);border-color:rgba(125,211,252,.4)}
-  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14.5px}
-  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
-  td .ok{color:var(--acc)} td .no{color:var(--bad)}
-  blockquote{margin:24px 0 0;padding:14px 18px;border-left:3px solid var(--acc);background:var(--panel);border-radius:0 10px 10px 0;color:var(--fg);font-size:16px}
-  footer{padding:40px 0 64px;color:var(--dim);font-size:14px}
-  footer a{color:var(--mut)}
-  .muted{color:var(--dim);font-size:13px;margin-top:10px}
-  /* demo */
-  .demo{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden;margin-top:24px}
-  .demo .row{padding:16px 20px;border-bottom:1px solid var(--line)}
-  .demo .row:last-child{border-bottom:0}
-  .demo .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
-  .demo pre{margin:0;border:0;background:transparent;padding:0;font-size:13.5px;line-height:1.7}
-  .del{color:var(--bad)} .add{color:var(--acc)} .cm{color:var(--dim)}
-  .gate{background:#160f12;border:1px solid rgba(248,113,113,.35);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:#fca5a5;margin-top:4px}
-  .gate.pass{background:#0e1611;border-color:rgba(110,231,183,.35);color:#86efac}
-  .flow{font-family:var(--mono);font-size:13px;color:var(--mut);line-height:1.5;white-space:pre;overflow:auto}
-  .flow b{color:var(--fg)} .flow .g{color:var(--acc)} .flow .r{color:var(--bad)}
-  @media(max-width:680px){h1{font-size:34px}.grid{grid-template-columns:1fr}}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01";overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--red);color:var(--paper)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 var(--gut)}
+  .mono{font-family:var(--mono)}
+  .kick{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--red)}
+  code{font-family:var(--mono);font-size:.92em}
+
+  /* topbar */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:22px 0;border-bottom:1px solid var(--line)}
+  .brand{font-family:var(--serif);font-weight:900;font-size:21px;letter-spacing:-.02em}
+  .brand b{color:var(--red)}
+  .top .meta{display:flex;gap:18px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.04em}
+  .top .meta a{border-bottom:1px solid transparent} .top .meta a:hover{border-color:currentColor}
+  .top .meta strong{color:var(--ink)}
+
+  /* hero */
+  .hero{padding:clamp(48px,9vw,110px) 0 clamp(40px,7vw,84px);position:relative}
+  .hero h1{font-family:var(--serif);font-weight:900;font-size:clamp(3rem,8.6vw,7.2rem);line-height:.92;letter-spacing:-.03em;margin:.35em 0 0;max-width:14ch}
+  .hero h1 em{font-style:italic;font-weight:600;color:var(--red)}
+  .lede{font-size:clamp(1.05rem,1.9vw,1.4rem);color:var(--ink-soft);max-width:52ch;margin:1.4em 0 0;line-height:1.5}
+  .lede b{color:var(--ink);font-weight:600}
+  .cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:2em;align-items:center}
+  .btn{font-family:var(--sans);font-weight:600;font-size:16px;padding:13px 26px;border:1.5px solid var(--ink);transition:transform .25s var(--ease),background .25s,color .25s}
+  .btn.ink{background:var(--ink);color:var(--paper)}
+  .btn.ink:hover{transform:translateY(-2px)}
+  .btn.ghost:hover{background:var(--ink);color:var(--paper)}
+  .stamp{display:inline-flex;align-items:center;gap:.5em;font-family:var(--mono);font-weight:700;font-size:clamp(.8rem,1.5vw,1.05rem);letter-spacing:.16em;text-transform:uppercase;padding:.55em 1em;border:2.5px solid currentColor;border-radius:6px;position:relative;mix-blend-mode:multiply;white-space:nowrap}
+  .stamp::after{content:"";position:absolute;inset:3px;border:1px solid currentColor;border-radius:4px;opacity:.55}
+  .stamp.blocked{color:var(--red)}
+  .stamp.passed{color:var(--green)}
+  .hero-stamp{position:absolute;top:clamp(30px,9vw,120px);right:var(--gut);transform:rotate(-8deg);font-size:clamp(.95rem,2vw,1.4rem)}
+  @media(max-width:820px){.hero-stamp{position:static;display:inline-flex;margin-top:1.4em;transform:rotate(-6deg)}}
+
+  /* npx strip */
+  .npx{margin-top:2.6em;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:1.6em}
+  .npx .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  .npx code{background:var(--paper-2);border:1px solid var(--line);padding:11px 16px;font-size:14px;color:var(--ink);overflow:auto;max-width:100%}
+
+  /* sections */
+  section{padding:clamp(56px,8vw,108px) 0;border-top:1px solid var(--line)}
+  .sechead{display:grid;grid-template-columns:auto 1fr;gap:clamp(16px,4vw,54px);align-items:start;margin-bottom:clamp(28px,4vw,52px)}
+  .sechead .num{font-family:var(--mono);font-size:13px;color:var(--ink-faint);padding-top:.7em;letter-spacing:.1em}
+  .sechead h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.9rem,4.6vw,3.4rem);line-height:1.02;letter-spacing:-.02em;margin:.1em 0 0;max-width:18ch}
+  .sechead h2 em{font-style:italic;color:var(--red)}
+  .seclede{font-size:1.12rem;color:var(--ink-soft);max-width:60ch;margin:.7em 0 0}
+
+  /* terminal / verdict */
+  .term{background:var(--term);color:var(--term-fg);font-family:var(--mono);font-size:13.5px;line-height:1.7;padding:20px 22px;border-radius:10px;overflow:auto;white-space:pre-wrap;margin:0;box-shadow:0 24px 60px -34px oklch(24% 0.05 52 / .5)}
+  .term .bar{display:flex;gap:7px;margin-bottom:14px}
+  .term .bar i{width:11px;height:11px;border-radius:50%;background:oklch(45% 0.02 60)}
+  .term .red{color:oklch(72% 0.16 25)} .term .grn{color:oklch(78% 0.13 150)} .term .dim{color:oklch(62% 0.02 70)}
+  .term b{color:#fff;font-weight:700}
+
+  /* report (before/after) */
+  .report{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--line);background:var(--paper-2);border-radius:12px;overflow:hidden;margin-top:30px}
+  .report .step{padding:20px 24px;border-top:1px solid var(--line)} .report .step:first-child{border-top:0}
+  .report .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px}
+  .report pre{margin:0;font-family:var(--mono);font-size:13.5px;line-height:1.7;overflow:auto;color:var(--ink)}
+  .report .del{color:var(--red)} .report .add{color:var(--green)} .report .cm{color:var(--ink-faint)}
+  .report .verdict{font-family:var(--mono);font-size:13px;padding:11px 15px;border-radius:7px;display:inline-block}
+  .report .verdict.no{background:oklch(92% 0.06 27);color:var(--red);border:1px solid oklch(80% 0.1 27)}
+  .report .verdict.ok{background:oklch(93% 0.06 150);color:var(--green);border:1px solid oklch(82% 0.09 150)}
+
+  /* mechanisms — editorial list, not cards */
+  .mechs{border-top:1px solid var(--line);margin-top:8px}
+  .mech{display:grid;grid-template-columns:auto 1fr auto;gap:clamp(14px,3vw,40px);align-items:baseline;padding:26px 0;border-bottom:1px solid var(--line);transition:padding-left .3s var(--ease)}
+  .mech:hover{padding-left:10px}
+  .mech .mn{font-family:var(--mono);font-size:13px;color:var(--ink-faint)}
+  .mech h3{font-family:var(--serif);font-weight:600;font-size:clamp(1.3rem,2.6vw,1.9rem);margin:0;letter-spacing:-.01em}
+  .mech p{margin:.5em 0 0;color:var(--ink-soft);max-width:64ch;font-size:1.02rem}
+  .mech p em{color:var(--ink);font-style:italic}
+  .mech .role{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--red);white-space:nowrap;padding-top:.4em}
+  .mech .role.adv{color:var(--ink-faint)}
+  @media(max-width:720px){.mech{grid-template-columns:auto 1fr}.mech .role{grid-column:2;padding-top:.2em}}
+
+  /* pullquote */
+  .pull{font-family:var(--serif);font-weight:500;font-size:clamp(1.5rem,3.6vw,2.6rem);line-height:1.18;letter-spacing:-.01em;max-width:24ch;margin:0}
+  .pull em{font-style:italic;color:var(--red)}
+  .pull .by{display:block;font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:1.2em;font-weight:400}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:1rem}
+  th,td{text-align:left;padding:15px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+  td b{font-weight:600}
+  td .no{color:var(--red);font-family:var(--mono);font-size:.9em} td .ok{color:var(--green);font-family:var(--mono);font-size:.9em}
+  .findings td:first-child{font-family:var(--serif);font-weight:600;font-size:1.1rem;width:34%}
+
+  .grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,64px);align-items:start}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+
+  .lang{font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+  .lang strong{color:var(--ink)} .lang a{color:var(--ink-faint)} .lang a:hover{color:var(--ink)}
+
+  footer{padding:clamp(40px,6vw,72px) 0;border-top:2px solid var(--ink)}
+  footer .big{font-family:var(--serif);font-weight:900;font-size:clamp(2.4rem,7vw,5rem);letter-spacing:-.03em;line-height:1;margin:0 0 .3em}
+  footer .row{display:flex;gap:20px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--ink-faint);margin-top:1.4em}
+  footer .row a{border-bottom:1px solid var(--line)} footer .row a:hover{border-color:var(--ink);color:var(--ink)}
+
+  .muted{color:var(--ink-faint);font-size:.92rem;margin-top:14px}
+  .muted a{border-bottom:1px solid var(--line)}
+
+  /* motion */
+  [data-rev]{opacity:0;transform:translateY(22px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+  [data-rev].in{opacity:1;transform:none}
+  @keyframes thunk{0%{opacity:0;transform:rotate(-8deg) scale(1.7)}55%{opacity:1}100%{opacity:1;transform:rotate(-8deg) scale(1)}}
+  .hero-stamp{animation:thunk .65s 1s var(--ease) both}
+  @media(prefers-reduced-motion:reduce){[data-rev],[data-rev].in{opacity:1;transform:none;transition:none}.hero-stamp{animation:none}}
 </style>
 </head>
 <body>
 
-<header class="hero">
-  <div class="wrap">
-    <div class="lang"><strong>EN</strong> · <a href="index.pt.html">PT</a></div>
-    <span class="pill">npx @marcusbarcelos/spec-agent · MIT</span>
-    <h1>Stop letting your coding agent <span class="hl">ship broken code</span>.</h1>
-    <p class="tag">spec-agent adds verification gates, project rules, and durable learning to <strong>Claude Code, Copilot, Cursor, and Codex</strong> — without replacing your agent.</p>
-    <div class="cta">
-      <a class="btn primary" href="#start">Get started</a>
-      <a class="btn ghost" href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub →</a>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">spec<b>·</b>agent</div>
+    <div class="meta">
+      <span class="lang"><strong>EN</strong> · <a href="index.pt.html">PT</a></span>
+      <span>v0.1.4 · MIT</span>
+      <a href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub ↗</a>
     </div>
-<pre><span class="c"># scaffold .spec/ + adapters into the current repo</span>
-npx @marcusbarcelos/spec-agent init --id my-project --agents claude,agents-md</pre>
   </div>
-</header>
+
+  <header class="hero">
+    <span class="kick" data-rev>Quality gate for coding agents</span>
+    <h1 data-rev>Your agent will ship <em>broken</em> code.</h1>
+    <div class="hero-stamp"><span class="stamp blocked">✗ Blocked</span></div>
+    <p class="lede" data-rev>spec-agent is the contract that won't let it. A deterministic gate, project rules it actually applies, and durable learning — for <b>Claude Code, Copilot, Cursor &amp; Codex</b>. It doesn't replace your agent. It tells it <b>no</b>.</p>
+    <div class="cta" data-rev>
+      <a class="btn ink" href="#start">Get started</a>
+      <a class="btn ghost" href="https://github.com/MarcusViniciusBarcelos/spec-agent">Read the source</a>
+    </div>
+    <div class="npx" data-rev>
+      <span class="lbl">Install</span>
+      <code>npx @marcusbarcelos/spec-agent init --id my-project --agents claude</code>
+    </div>
+  </header>
+</div>
 
 <section id="demo">
   <div class="wrap">
-    <h2>See it work</h2>
-    <h3 class="big">The agent says "done." The gate says "not yet."</h3>
-    <p class="lead">It's not a prompt. It's a deterministic checkpoint between your agent finishing and the code landing.</p>
-
-    <div style="margin-top:22px"><script src="https://asciinema.org/a/yO1ABlT2IFMdCOuV.js" id="asciicast-yO1ABlT2IFMdCOuV" async data-theme="monokai" data-rows="22"></script></div>
-
-    <div class="flow" style="margin-top:24px">
-agent finishes a change
-        │
-        ▼
-  <b>spec-agent gate</b>  ──  lint · typecheck · tests · project invariants
-        │
-   ┌────┴─────┐
-<span class="g">pass</span>        <span class="r">fail</span>
-   │           │
- <span class="g">✓ lands</span>   error handed back to the agent ─→ agent fixes ─→ gate re-runs
-    </div>
-
-    <div class="demo">
-      <div class="row">
-        <div class="lbl">Your project invariant: each whitespace → one dash</div>
-        <div class="lbl" style="margin-top:10px">The agent's final diff — looks fine, ships wrong</div>
-<pre><span class="del">- const slug = name.trim().replace(/\s+/g, "-")</span>  <span class="cm">// "a  b" → "a-b"  ✗ collapses runs</span></pre>
-      </div>
-      <div class="row">
-        <div class="lbl">spec-agent gate (runs before the agent is allowed to finish)</div>
-        <div class="gate">✗ FAILED — slug: whitespace invariant<br/>↳ error handed back to the agent, finish blocked</div>
-      </div>
-      <div class="row">
-        <div class="lbl">The agent re-runs and corrects it</div>
-<pre><span class="add">+ const slug = name.trim().replace(/\s/g, "-")</span>   <span class="cm">// "a  b" → "a--b"  ✓</span></pre>
-        <div class="gate pass">✓ gate passed — change can land</div>
+    <div class="sechead">
+      <span class="num">01 — Proof</span>
+      <div>
+        <h2>The agent says <em>done</em>.<br/>The gate says not yet.</h2>
+        <p class="seclede">A deterministic checkpoint between your agent finishing and the code landing — not a prompt. Watch it block a real bug, hand it back, and pass only once it's fixed.</p>
       </div>
     </div>
-    <p class="muted">Without spec-agent, that first diff ships. The agent thought it was done; the lint/typecheck/test/invariant check disagreed — and the agent fixed it before you ever saw the PR.</p>
+
+    <div data-rev style="margin-bottom:36px"><script src="https://asciinema.org/a/yO1ABlT2IFMdCOuV.js" id="asciicast-yO1ABlT2IFMdCOuV" async data-theme="monokai" data-rows="22"></script></div>
+
+    <div class="report" data-rev>
+      <div class="step">
+        <div class="tag">Your project's rule — each whitespace becomes one dash</div>
+<pre><span class="del">- const slug = name.trim().replace(/\s+/g, "-")</span>   <span class="cm">// "a  b" → "a-b"  ✗ collapses runs</span></pre>
+      </div>
+      <div class="step">
+        <div class="tag">The gate runs before the agent can finish</div>
+        <span class="verdict no">SPEC-AGENT VERDICT: BLOCKED — slug whitespace invariant · finish blocked</span>
+      </div>
+      <div class="step">
+        <div class="tag">The agent re-runs and corrects it</div>
+<pre><span class="add">+ const slug = name.trim().replace(/\s/g, "-")</span>    <span class="cm">// "a  b" → "a--b"  ✓</span></pre>
+        <span class="verdict ok">SPEC-AGENT VERDICT: PASSED — done means verified</span>
+      </div>
+    </div>
+    <p class="muted">Without spec-agent, that first diff ships — the agent thought it was done. Run it yourself in 30s: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a>.</p>
   </div>
 </section>
 
-<section id="why">
-  <div class="wrap">
-    <h2>The thesis</h2>
-    <h3 class="big">AI agents are fast — and confidently wrong.</h3>
-    <p class="lead">spec-agent makes <strong>done</strong> mean: tests pass, contracts hold, project rules are respected, and recurring mistakes become reusable skills. It's the <strong>quality contract between your repo and your coding agent</strong> — an automatic tech lead that says <em>"No. This doesn't pass."</em> Not a prompt; a deterministic checkpoint, measured honestly.</p>
+<section id="thesis">
+  <div class="wrap grid2">
+    <div data-rev>
+      <span class="kick">The thesis</span>
+      <p class="pull" style="margin-top:.6em">AI agents are fast. They are also <em>confidently wrong</em>.
+        <span class="by">— an agent without a gate is an overconfident junior</span></p>
+    </div>
+    <div data-rev>
+      <p class="seclede" style="margin-top:.2em">When the base model is already capable, prompting alone barely moves the needle. The leverage is <b>governance</b> — block work that's objectively wrong, and teach the model your invariants so it applies them instead of re-deriving them wrong.</p>
+      <p class="seclede">spec-agent is the <b>quality contract between your repository and your coding agent</b>. The automatic tech lead that says <em style="color:var(--red);font-style:italic">"No. This doesn't pass."</em></p>
+    </div>
   </div>
 </section>
 
 <section id="mechanisms">
   <div class="wrap">
-    <h2>What's inside</h2>
-    <h3 class="big">A few parts, each for a distinct failure</h3>
-    <div class="grid">
-      <div class="card"><h4>verification gate <span class="tagk cheap">core</span></h4><p>A deterministic Stop-hook that blocks "done" while lint/typecheck/tests fail on what was touched. Catches the error the model can't see in itself. <strong>The clearest ROI.</strong></p></div>
-      <div class="card"><h4>project learning &amp; skill-forge <span class="tagk cheap">differentiator</span></h4><p>Turns a recurring project mistake into an imperative, reusable rule the model actually applies — where, without it, it <em>knows the rule and breaks it anyway</em>.</p></div>
-      <div class="card"><h4>context-economy <span class="tagk cheap">core</span></h4><p>Token discipline in prompt, tool input, and output. A code graph instead of re-reading files.</p></div>
-      <div class="card"><h4>agent-council <span class="tagk adv">advanced</span></h4><p>A multi-perspective review reserved for <strong>high-risk, ambiguous calls</strong> — DB migrations, contract breaks, security, architecture. Not for everyday turns.</p></div>
+    <div class="sechead">
+      <span class="num">02 — Inside</span>
+      <div><h2>A few parts. Each for a distinct failure.</h2></div>
     </div>
+    <div class="mechs">
+      <div class="mech" data-rev><span class="mn">01</span><div><h3>Verification gate</h3><p>A deterministic Stop-hook that blocks "done" while lint, typecheck or tests fail on what was touched. Catches the error the model can't see in itself.</p></div><span class="role">Core · clearest ROI</span></div>
+      <div class="mech" data-rev><span class="mn">02</span><div><h3>Project learning &amp; skill-forge</h3><p>Turns a recurring mistake into an imperative, reusable rule the model actually applies — where, without it, it <em>knows the rule and breaks it anyway</em>.</p></div><span class="role">The differentiator</span></div>
+      <div class="mech" data-rev><span class="mn">03</span><div><h3>Context-economy</h3><p>Token discipline in prompt, tool input and output. A code graph instead of re-reading files.</p></div><span class="role">Core</span></div>
+      <div class="mech" data-rev><span class="mn">04</span><div><h3>Agent-council</h3><p>Multi-perspective review reserved for high-risk, ambiguous calls — DB migrations, contract breaks, security, architecture. Not for everyday turns.</p></div><span class="role adv">Advanced</span></div>
+    </div>
+  </div>
+</section>
 
-    <div class="demo" style="margin-top:22px">
-      <div class="row">
-        <div class="lbl">skill-forge — durable learning, in action</div>
-<pre><span class="cm">// without the learned rule — the model even cites it, then breaks it:</span>
-<span class="del">- const d = dto.expirationDate ?? dto.expiration_date</span>  <span class="cm">// defensive snake_case fallback (violates the project rule)</span>
+<section id="ci">
+  <div class="wrap">
+    <div class="sechead">
+      <span class="num">03 — CI / PR</span>
+      <div><h2>Make <em>done</em> enforceable, not a vibe.</h2>
+      <p class="seclede"><code>spec-agent verify</code> runs your gate and prints a verdict that reads like a code review — green in CI, blocking on a PR, non-zero exit when blocked.</p></div>
+    </div>
+    <div class="grid2">
+      <pre class="term" data-rev><span class="dim"># .github/workflows/spec-agent.yml</span>
+- run: npx @marcusbarcelos/spec-agent verify
 
-<span class="cm">// with the skill in context:</span>
-<span class="add">+ const d = dto.expirationDate</span>                        <span class="cm">// fix the type at the source, no fallback</span></pre>
+<span class="red">SPEC-AGENT VERDICT: BLOCKED</span>
+
+  <span class="red">✗</span> domain contract  node --test
+      <span class="red">idempotency invariant failed: duplicate ledger entry for sale-1</span>
+
+<span class="dim">Blocked: 1 check(s) failed. Fix and re-run.</span>
+<span class="dim">Run summary: 1 check · 1 blocked · 0 passed · 127ms</span></pre>
+      <div data-rev>
+        <p class="seclede" style="margin-top:0">The checks live in <code>.spec/manifest.yaml</code> — your tests, lint, typecheck, any command. This is where spec-agent stops being an assistant and becomes the <b>guardian of the repo</b>.</p>
+        <p class="muted">Runnable demo: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a> — a commission ledger that must be idempotent by <code>sale_id</code>.</p>
       </div>
     </div>
   </div>
@@ -156,51 +255,37 @@ agent finishes a change
 
 <section id="measured">
   <div class="wrap">
-    <h2>What we measured</h2>
-    <h3 class="big">A reproducible method — and a first, honest signal</h3>
-    <p class="lead">A small, tamper-isolated benchmark (the agent never sees the checkers). It's a <strong>method plus a first signal</strong>, not proof — small N, stated openly. What it points to:</p>
-    <table>
+    <div class="sechead">
+      <span class="num">04 — Evidence</span>
+      <div><h2>A reproducible method, and a first honest signal.</h2>
+      <p class="seclede">A small, tamper-isolated benchmark — the agent never sees the checkers. A <b>method plus a first signal</b>, not proof. Small N, stated openly.</p></div>
+    </div>
+    <table class="findings" data-rev>
       <thead><tr><th>finding</th><th>signal</th></tr></thead>
       <tbody>
-        <tr><td><strong>The gate is the concrete win.</strong></td><td>Recovered an objective failure the model shipped — targeted tasks went 80% → 100% via the fix-loop. Prompt rules alone moved ~0 on a capable model.</td></tr>
-        <tr><td><strong>Durable knowledge changes behavior.</strong></td><td>A learned project rule flipped a wrong answer to right — the model knew the rule and violated it without the skill.</td></tr>
-        <tr><td><strong>Council's niche is calibration.</strong></td><td>On ambiguous-but-sound trade-offs it never false-blocked (0/4), where a single pass did. Real, but narrow — hence "advanced."</td></tr>
+        <tr><td>The gate is the win</td><td>Recovered an objective failure the model shipped — targeted tasks went <b>80% → 100%</b> via the fix-loop. Prompt rules alone moved ~0 on a capable model.</td></tr>
+        <tr><td>Durable knowledge changes behavior</td><td>A learned project rule flipped a wrong answer to right — the model knew the rule and violated it without the skill.</td></tr>
+        <tr><td>Council's niche is calibration</td><td>On ambiguous-but-sound trade-offs it never false-blocked (<b>0/4</b>), where a single pass did. Real, but narrow — hence "advanced".</td></tr>
       </tbody>
     </table>
-    <blockquote>With a capable base model, the differential shows at the margins — in the objective gate and durable project knowledge, not in expensive orchestration by default.</blockquote>
-    <p class="muted">Full method, numbers, and caveats: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/RESULTS.md">RESULTS</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/SKILLFORGE-RESULTS.md">SKILLFORGE</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/COUNCIL-RESULTS.md">COUNCIL</a>. Small N — indicative, not statistical proof.</p>
-  </div>
-</section>
-
-<section id="ci">
-  <div class="wrap">
-    <h2>CI / pull requests</h2>
-    <h3 class="big">Make "done" enforceable, not a vibe</h3>
-    <p class="lead"><code>spec-agent verify</code> runs your project's gate and prints a verdict that reads like a code review — green in CI, blocking on a PR, non-zero exit when blocked.</p>
-<pre><span class="c"># .github/workflows/spec-agent.yml</span>
-- run: npx @marcusbarcelos/spec-agent verify</pre>
-<pre style="color:#fca5a5;border-color:rgba(248,113,113,.32)">SPEC-AGENT VERDICT: BLOCKED
-
-  ✗ domain contract  node --test
-      idempotency invariant failed: duplicate ledger entry for sale-1
-
-Blocked: 1 check(s) failed. Fix and re-run `spec-agent verify`.</pre>
-    <p class="muted">The checks live in <code>.spec/manifest.yaml</code> — your tests, lint, typecheck, any command. This is where spec-agent stops being an assistant and becomes the <strong>guardian of the repo</strong>. Runnable demo: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a>.</p>
+    <p class="muted">Full method, numbers &amp; caveats: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/RESULTS.md">RESULTS</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/SKILLFORGE-RESULTS.md">SKILLFORGE</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/COUNCIL-RESULTS.md">COUNCIL</a>. Small N — indicative, not statistical proof.</p>
   </div>
 </section>
 
 <section id="agents">
   <div class="wrap">
-    <h2>Works with your agent</h2>
-    <h3 class="big">An honest loss-model, not an empty promise</h3>
-    <p class="lead">Full harness on Claude Code; on other agents it runs <strong>degraded-but-functional</strong>, with the gaps written down in the manifest's <code>loss_report</code>.</p>
-    <table>
+    <div class="sechead">
+      <span class="num">05 — Reach</span>
+      <div><h2>Works with your agent.<br/>An honest loss-model.</h2>
+      <p class="seclede">Full harness on Claude Code; on other agents it runs degraded-but-functional, with the gaps written down in the manifest's <code>loss_report</code>.</p></div>
+    </div>
+    <table data-rev>
       <thead><tr><th>capability</th><th>Claude Code</th><th>other agents</th></tr></thead>
       <tbody>
-        <tr><td>verification gate</td><td>Stop hook</td><td>git pre-commit / CI</td></tr>
-        <tr><td>durable learning</td><td>native skills + memory</td><td><code>.spec/learning/</code></td></tr>
-        <tr><td>multi-agent (council)</td><td>native subagents</td><td>single-thread simulation</td></tr>
-        <tr><td>code graph</td><td>graphify CLI</td><td>graphify CLI</td></tr>
+        <tr><td><b>verification gate</b></td><td>Stop hook</td><td>git pre-commit / CI</td></tr>
+        <tr><td><b>durable learning</b></td><td>native skills + memory</td><td><code>.spec/learning/</code></td></tr>
+        <tr><td><b>multi-agent (council)</b></td><td>native subagents</td><td>single-thread simulation</td></tr>
+        <tr><td><b>code graph</b></td><td>graphify CLI</td><td>graphify CLI</td></tr>
       </tbody>
     </table>
     <p class="muted">Agent-specific enhancers (claude-mem, superpowers, rtk, graphify) are optional — never dependencies.</p>
@@ -209,28 +294,43 @@ Blocked: 1 check(s) failed. Fix and re-run `spec-agent verify`.</pre>
 
 <section id="start">
   <div class="wrap">
-    <h2>Get started</h2>
-    <h3 class="big">Three commands</h3>
-<pre><span class="c"># scaffold .spec/ + adapters</span>
+    <div class="sechead">
+      <span class="num">06 — Start</span>
+      <div><h2>Three commands.</h2></div>
+    </div>
+    <pre class="term" data-rev><span class="dim"># scaffold .spec/ + adapters into the current repo</span>
 npx @marcusbarcelos/spec-agent init --id my-project --agents claude,agents-md
 
-<span class="c"># re-project adapters when the engine evolves (never touches your durable state)</span>
+<span class="dim"># re-project adapters when the engine evolves (never touches your durable state)</span>
 npx @marcusbarcelos/spec-agent sync
 
-<span class="c"># run the gate yourself (CI / PR) — verdict + non-zero exit if blocked</span>
+<span class="dim"># run the gate yourself (CI / PR) — verdict + non-zero exit if blocked</span>
 npx @marcusbarcelos/spec-agent verify</pre>
-    <p class="lead">Requires Node ≥ 20. The harness runs <strong>inside the coding agent you already use</strong>.</p>
+    <p class="muted">Requires Node ≥ 20. The harness runs inside the coding agent you already use.</p>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <strong>spec-agent</strong> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/LICENSE">MIT</a> © 2026 Marcus Vinicius Barcelos ·
-    <a href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub</a> ·
-    <a href="https://www.npmjs.com/package/@marcusbarcelos/spec-agent">npm</a>
-    <p class="muted">Built to run <em>alongside</em> the coding agent you already use — Claude Code, Copilot, Cursor, Codex.</p>
+    <p class="big" data-rev>Done should<br/>mean <em style="font-style:italic;color:var(--red)">verified</em>.</p>
+    <div class="cta"><a class="btn ink" href="https://www.npmjs.com/package/@marcusbarcelos/spec-agent">Install from npm</a><a class="btn ghost" href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub</a></div>
+    <div class="row">
+      <span>spec-agent</span>
+      <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/LICENSE">MIT</a>
+      <span>© 2026 Marcus Vinicius Barcelos</span>
+      <span>Built to run alongside Claude Code · Copilot · Cursor · Codex</span>
+    </div>
   </div>
 </footer>
 
+<script>
+  const io = new IntersectionObserver((es) => {
+    es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll("[data-rev]").forEach((el, i) => {
+    if (el.closest(".hero")) el.style.transitionDelay = (i * 0.08) + "s";
+    io.observe(el);
+  });
+</script>
 </body>
 </html>
