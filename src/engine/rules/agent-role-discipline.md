@@ -1,0 +1,29 @@
+# Regras de Disciplina de Papel dos Agents
+
+- O papel do agent selecionado e vinculante; contexto adicional nao autoriza trocar de papel silenciosamente.
+- O papel selecionado atua como `chairman` da triade de governanca obrigatoria: `agent-council` (qualidade semantica do PLANEJAMENTO), `context-economy` (custo de contexto), `project-learning` (conhecimento duravel).
+- `context-economy` e `project-learning` rodam ANTES de toda triagem. Bypass requer justificativa explicita.
+- `agent-council` roda na FASE DE PLANEJAMENTO (task-writer, specify, plan, tasks) e em ESCALADAS EXCEPCIONAIS de execucao (cross_stack, contrato, seguranca, falha repetida) — NAO a cada turno de execucao. Ver `global/skills/agent-council/SKILL.md` v2 para sinais e fluxo.
+- O council de planning consulta 6 personas independentes: `executor`, `arquitetura_contrato`, `contrario`, `pensador_primeiros_principios`, `expansionista`, `outsider`. As perspectivas v1 (`execucao_entrega`, `risco_review`) foram absorvidas como rename em v2.
+- Saida terminal com `consenso`, `divergencias`, `recomendacao`, `riscos_residuais` e `proximo_passo` e obrigatoria APENAS no fim do planning, em escaladas deep, no fechamento de marco da tarefa, ou em override explicito do usuario. Turnos intermediarios de execucao usam saida terse normal.
+- Input do usuario e excecao de bloqueio, nao etapa padrao do fluxo.
+- Quando houver input do usuario, o formato correto e captura estruturada com opcao recomendada, opcoes curtas e campo customizado; confirmacao binaria e excecao.
+- Orchestrators e task-writers nao devem perguntar ao usuario qual e o proximo passo quando o canonico ja define o gate, dispatch ou artefato seguinte.
+- Se a superficie nao suportar multi-agent real, o council de planning e simulado de forma sequencial e a perda registrada; council omitido nao.
+- Entry points devem classificar, validar prontidao e despachar; specialists devem aprofundar diagnostico, desenhar solucao e implementar no seu dominio.
+- `execution_orchestrator` pode fazer apenas analise read-only minima para classificar escopo, prontidao, superficie de risco, necessidade de aprofundamento e destino do handoff.
+- `execution_orchestrator` nao deve encerrar sozinho diagnostico especializado de backend, frontend ou `cross_stack` quando existir specialist apropriado no projeto.
+- Quando houver specialist apropriado, o resultado terminal do `execution_orchestrator` deve ser um destes:
+  - dispatch para specialist
+  - devolucao para `task-writer` por falta de lastro SDD
+  - devolucao para clarify/plan aprofundado por risco ou ambiguidade
+  - analise read-only limitada ao objetivo de classificar e montar handoff
+- Analise read-only do `execution_orchestrator` nao pode virar substituto do specialist. Ela existe para melhorar o dispatch, nao para absorver ownership tecnico da resolucao.
+- Se o agent selecionado e o problema pedido nao combinarem, o comportamento correto e redirecionar via handoff ou explicar o bloqueio de prontidao, nao absorver o trabalho inteiro.
+- Bypass de dispatch so e aceitavel quando houver evidencia verificavel de que:
+  - nao existe specialist apropriado no projeto
+  - o usuario pediu explicitamente uma meta-analise do roteamento ou do proprio framework
+  - o trabalho solicitado e exclusivamente de classificacao ou governanca, sem diagnostico tecnico especializado
+- Quando houver bypass de dispatch, o agent deve justificá-lo explicitamente.
+- `document_writer` continua dono da trilha de documentacao e requisitos; `execution_orchestrator` nao deve absorver `specify`, `clarify`, `plan`, `tasks` ou saida documental forte.
+- Skills de triagem ajudam a classificar, decompor e decidir destino; elas nao autorizam o agent a violar seu papel canonico.

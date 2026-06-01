@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>spec-agent — harness governado para o seu agente de código</title>
+<meta name="description" content="Harness de governança para o seu agente de código (Claude Code, Copilot, Codex, Cursor), via npx. Gate determinístico, skill-forge e council — roda junto do agente que você já usa." />
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#12161b; --panel2:#161b22; --line:#222a33;
+    --fg:#e6edf3; --mut:#9aa7b4; --dim:#6b7785;
+    --acc:#6ee7b7; --acc2:#7dd3fc; --warn:#fbbf24; --bad:#f87171;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--acc2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
+  code,pre{font-family:var(--mono)}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow:auto;font-size:14px;margin:14px 0}
+  pre .c{color:var(--dim)}
+  .pill{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:3px 11px;margin-bottom:18px}
+  header.hero{padding:84px 0 56px;border-bottom:1px solid var(--line);background:radial-gradient(1100px 380px at 50% -120px,rgba(110,231,183,.10),transparent)}
+  h1{font-size:46px;line-height:1.05;margin:6px 0 14px;letter-spacing:-.02em}
+  h1 .mono{font-family:var(--mono);color:var(--acc)}
+  .tag{font-size:20px;color:var(--mut);max-width:680px;margin:0 0 26px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
+  .btn{display:inline-block;font-weight:600;font-size:15px;padding:11px 20px;border-radius:9px;border:1px solid var(--line)}
+  .btn.primary{background:var(--acc);color:#062018;border-color:var(--acc)}
+  .btn.ghost{background:var(--panel);color:var(--fg)}
+  section{padding:56px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin:0 0 8px}
+  h3.big{font-size:28px;margin:0 0 22px;letter-spacing:-.01em}
+  .lead{font-size:18px;color:var(--mut);max-width:720px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .card h4{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--mut);font-size:14.5px}
+  .tagk{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
+  .tagk.cheap{color:var(--acc);border-color:rgba(110,231,183,.4)}
+  .tagk.sel{color:var(--acc2);border-color:rgba(125,211,252,.4)}
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  td .ok{color:var(--acc)} td .no{color:var(--bad)}
+  .find{display:grid;grid-template-columns:auto 1fr;gap:12px 16px;margin-top:20px}
+  .find .k{font-family:var(--mono);font-size:13px;color:var(--acc);white-space:nowrap}
+  .find .v{color:var(--mut);font-size:15px;margin:0}
+  blockquote{margin:26px 0 0;padding:14px 18px;border-left:3px solid var(--acc);background:var(--panel);border-radius:0 10px 10px 0;color:var(--fg);font-size:16px}
+  footer{padding:40px 0 64px;color:var(--dim);font-size:14px}
+  footer a{color:var(--mut)}
+  .muted{color:var(--dim);font-size:13px;margin-top:10px}
+  @media(max-width:680px){h1{font-size:34px}.grid,.find{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill">npx spec-agent · MIT</span>
+    <h1>O harness <span class="mono">governado</span><br/>para o seu agente de código.</h1>
+    <p class="tag">Regras que cabem no contexto, um gate determinístico que barra o que o modelo não vê, e um loop de aprendizado que vira conhecimento durável. Roda <strong>junto do agente de código que você já usa</strong> — Claude Code, Copilot, Codex, Cursor.</p>
+    <div class="cta">
+      <a class="btn primary" href="#start">Começar</a>
+      <a class="btn ghost" href="https://github.com/MarcusViniciusBarcelos/spec-agent">Ver no GitHub →</a>
+    </div>
+<pre><span class="c"># scaffolda .spec/ + adapters no repo atual</span>
+npx spec-agent init --id meu-projeto --agents claude,agents-md</pre>
+  </div>
+</header>
+
+<section id="why">
+  <div class="wrap">
+    <h2>Por quê</h2>
+    <h3 class="big">Não é mais um framework de prompt.</h3>
+    <p class="lead">Quando o modelo base já é capaz, prompt sozinho move pouco. O que sobra de diferencial é <strong>governança</strong>: barrar o erro objetivo que o modelo não enxerga, e transformar erro recorrente do projeto em conhecimento que ele aplica da próxima vez. <code>spec-agent</code> instala exatamente essa camada — e mede o quanto ela rende, sem hype.</p>
+  </div>
+</section>
+
+<section id="mechanisms">
+  <div class="wrap">
+    <h2>Os mecanismos</h2>
+    <h3 class="big">Cinco peças, cada uma para uma falha distinta</h3>
+    <div class="grid">
+      <div class="card"><h4>gate de verificação <span class="tagk cheap">barato</span></h4><p>Stop-hook determinístico que barra finalizar com lint/typecheck falho no que foi tocado. Pega o erro que o modelo não enxerga sozinho.</p></div>
+      <div class="card"><h4>skill-forge <span class="tagk cheap">barato</span></h4><p>Vira erro recorrente do projeto em skill imperativa reutilizável. Conhecimento durável &gt; memória que o modelo "sabe mas não aplica".</p></div>
+      <div class="card"><h4>context-economy <span class="tagk cheap">barato</span></h4><p>Disciplina de tokens em prompt, tool input e resposta. Grafo de código no lugar de reler arquivos.</p></div>
+      <div class="card"><h4>project-learning <span class="tagk cheap">barato</span></h4><p>Captura sinais de aprendizado em <code>_pending/</code> e promove para <code>learning/</code> do projeto.</p></div>
+      <div class="card"><h4>agent-council <span class="tagk sel">seletivo</span></h4><p>Painel multi-persona para decisão ambígua de alto risco. Calibra contra o falso-bloqueio — invocado só em planning/escalada.</p></div>
+      <div class="card"><h4>thin + sync</h4><p>O engine viaja no pacote; seu repo guarda só adapters + estado durável. <code>sync</code> nunca toca seu <code>learning/</code> nem suas <code>skills/</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="needle">
+  <div class="wrap">
+    <h2>O que medimos</h2>
+    <h3 class="big">Onde a governança rende — medido honestamente</h3>
+    <div class="find">
+      <span class="k">gate</span><p class="v"><strong>O mais barato e o de maior retorno.</strong> Quando uma mudança tropeça numa armadilha, o gate barra e o fix recupera — recuperação completa nas tarefas-alvo (<strong>80%→100%</strong>).</p>
+      <span class="k">skill-forge</span><p class="v"><strong>Conhecimento durável muda o comportamento.</strong> Uma regra do projeto vira skill imperativa e o agente passa a aplicá-la — onde, sem ela, <em>conhece a regra e ainda assim a viola</em>. Saber ≠ aplicar.</p>
+      <span class="k">council</span><p class="v"><strong>Calibra o que é ambíguo.</strong> Num painel de perspectivas independentes, a decisão de alto risco não é aprovada no susto nem bloqueada por excesso de zelo: <strong>zero falsos-bloqueios</strong> em tradeoffs legítimos.</p>
+    </div>
+    <table>
+      <thead><tr><th>tradeoff legítimo</th><th>single-pass</th><th>self-debate</th><th>council</th></tr></thead>
+      <tbody>
+        <tr><td>UUID v4 como PK</td><td><span class="no">bloqueia ✗</span></td><td><span class="no">bloqueia ✗</span></td><td><span class="ok">aprova ✓</span></td></tr>
+        <tr><td>réplica de leitura c/ lag ~5s</td><td><span class="ok">aprova ✓</span></td><td><span class="ok">aprova ✓</span></td><td><span class="ok">aprova ✓</span></td></tr>
+        <tr><td>denormalizar p/ caminho quente</td><td><span class="ok">aprova ✓</span></td><td><span class="no">bloqueia ✗</span></td><td><span class="ok">aprova ✓</span></td></tr>
+        <tr><td>engolir exceção acessória</td><td><span class="ok">aprova ✓</span></td><td><span class="ok">aprova ✓</span></td><td><span class="ok">aprova ✓</span></td></tr>
+        <tr><td><strong>falsos-bloqueios</strong></td><td><strong>1/4</strong></td><td><strong>2/4</strong></td><td><strong class="ok">0/4</strong></td></tr>
+      </tbody>
+    </table>
+    <blockquote>Ground-truth <strong>tamper-isolated</strong> — o agente nunca vê os checkers. O diferencial está onde governança rende de verdade: barrar o erro objetivo e fixar o conhecimento do projeto.</blockquote>
+    <p class="muted">Reprodutível e honesto (N pequeno: indicativo, não prova estatística). Métodos: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/RESULTS.md">RESULTS</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/COUNCIL-RESULTS.md">COUNCIL-RESULTS</a> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/bench/SKILLFORGE-RESULTS.md">SKILLFORGE-RESULTS</a>.</p>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="wrap">
+    <h2>Funciona com qualquer agente</h2>
+    <h3 class="big">Loss-model honesto, não promessa vazia</h3>
+    <p class="lead">O harness completo roda no Claude Code; em outros agentes roda <strong>degradado-mas-funcional</strong>, com as perdas registradas no <code>loss_report</code> do manifest. Ninguém mais formaliza isso.</p>
+    <table>
+      <thead><tr><th>capacidade</th><th>Claude Code</th><th>outros agentes</th></tr></thead>
+      <tbody>
+        <tr><td>multi-agent (council/skill-forge)</td><td>nativo (subagents)</td><td>simulação single-thread</td></tr>
+        <tr><td>memória cross-sessão</td><td>claude-mem (enhancer)</td><td><code>.spec/learning/</code> + memória nativa</td></tr>
+        <tr><td>workflows estruturados</td><td>superpowers (enhancer)</td><td>protocolos inlined</td></tr>
+        <tr><td>economia de tokens</td><td>rtk/caveman (enhancer)</td><td>disciplina via regra</td></tr>
+        <tr><td>grafo de código</td><td>graphify (CLI)</td><td>graphify (mesma CLI)</td></tr>
+        <tr><td>gate de verificação</td><td>Stop hook</td><td>git pre-commit / CI</td></tr>
+      </tbody>
+    </table>
+    <p class="muted">Enhancers específicos de um agente (claude-mem, superpowers, rtk, caveman) são opcionais — não dependências.</p>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <h2>Começar</h2>
+    <h3 class="big">Dois comandos</h3>
+<pre><span class="c"># scaffolda .spec/ + adapters por agente</span>
+npx spec-agent init --id meu-projeto --agents claude,agents-md
+
+<span class="c"># re-projeta adapters quando o engine evolui (não toca seu estado durável)</span>
+npx spec-agent sync</pre>
+    <p class="lead">Pré-requisito: Node ≥ 20. O harness opera <strong>dentro do agente de código que você já usa</strong>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <strong>spec-agent</strong> · <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/blob/main/LICENSE">MIT</a> © 2026 Barcelos ·
+    <a href="https://github.com/MarcusViniciusBarcelos/spec-agent">GitHub</a>
+    <p class="muted">Construído para rodar <em>junto</em> do agente de código que você já usa — Claude Code, Copilot, Codex, Cursor.</p>
+  </div>
+</footer>
+
+</body>
+</html>

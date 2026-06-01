@@ -1,0 +1,45 @@
+{
+  "name": "spec-agent",
+  "version": "0.1.0",
+  "description": "Governed, vendor-agnostic AI agent harness — scaffolds council, context-economy, project-learning, skill-forge and a verification gate into any repo via npx, projecting adapters for any vendor (Claude Code, AGENTS.md, Copilot).",
+  "type": "module",
+  "bin": { "spec-agent": "bin/spec-agent.js" },
+  "scripts": {
+    "test": "vitest run",
+    "bench:score": "node bench/score-batch.js",
+    "bench:api": "node bench/index.js"
+  },
+  "keywords": [
+    "ai-agent",
+    "agent-harness",
+    "llm",
+    "claude",
+    "copilot",
+    "codex",
+    "cursor",
+    "vendor-agnostic",
+    "scaffold",
+    "governance",
+    "context-economy",
+    "skill-forge"
+  ],
+  "author": "Marcus Vinicius Barcelos",
+  "license": "MIT",
+  "files": ["bin", "src", "README.md", "LICENSE"],
+  "dependencies": {
+    "commander": "^12.1.0",
+    "js-yaml": "^4.1.0",
+    "prompts": "^2.4.2"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "^0.32.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": { "optional": true }
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": { "node": ">=20" }
+}

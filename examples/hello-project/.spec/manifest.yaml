@@ -1,0 +1,20 @@
+id: hello-project
+vendors:
+  - claude
+  - agents-md
+engine_version: 0.1.0
+loss_report:
+  claude: []
+  agents-md:
+    - capability: cross-session-memory
+      status: degraded
+      fallback: .spec/learning files
+    - capability: structured-workflows
+      status: degraded
+      fallback: protocols inlined in rules
+    - capability: multi-agent
+      status: degraded
+      fallback: single-thread simulation
+    - capability: verification-gate
+      status: degraded
+      fallback: git pre-commit / CI
