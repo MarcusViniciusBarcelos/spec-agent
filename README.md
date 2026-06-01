@@ -8,6 +8,8 @@
 
 It's not another prompt framework. It's the **governance layer** that's left when the model is already capable: a deterministic gate that blocks what the model can't see, project rules it actually applies, and a learning loop that turns recurring mistakes into durable, reusable knowledge — running inside the agent you already use.
 
+> **spec-agent is the quality contract between your repository and your coding agent.** The gate verifies the contract, skill-forge learns its rules, council calibrates risky calls — and your agent can't say *done* until the contract holds. An agent without a gate is an overconfident junior; spec-agent is the automatic tech lead that says *"No. This doesn't pass."*
+
 ---
 
 ## See it work
@@ -42,6 +44,8 @@ A concrete before/after — your project's invariant is "each whitespace becomes
 
 Without spec-agent, that first diff ships. The agent thought it was done; the gate disagreed — and the agent fixed it before you ever saw the PR.
 
+▶ **Run it yourself** in 30 seconds: [`examples/idempotency-demo/`](./examples/idempotency-demo/) — a real domain contract (a commission ledger that must be idempotent), the gate blocking the bug, the fix, the gate passing.
+
 ## Quickstart
 
 ```bash
@@ -53,9 +57,32 @@ npx @marcusbarcelos/spec-agent sync
 
 # add an agent later (re-projects everything, preserves your durable state)
 npx @marcusbarcelos/spec-agent sync --agents copilot
+
+# run the gate yourself (CI / PR) — verdict + non-zero exit if blocked
+npx @marcusbarcelos/spec-agent verify
 ```
 
 Requires Node ≥ 20.
+
+## CI / pull requests
+
+`spec-agent verify` runs your project's gate and prints a verdict that reads like a code review — green in CI, blocking on a PR:
+
+```yaml
+# .github/workflows/spec-agent.yml
+- run: npx @marcusbarcelos/spec-agent verify
+```
+
+```
+SPEC-AGENT VERDICT: BLOCKED
+
+  ✗ domain contract  node --test
+      idempotency invariant failed: duplicate ledger entry for sale-1
+
+Blocked: 1 check(s) failed. Fix and re-run `spec-agent verify`.
+```
+
+The checks live in `.spec/manifest.yaml` (`checks: [{ name, cmd }]`) — your tests, lint, typecheck, or any command. This is where spec-agent stops being just an assistant and becomes the **guardian of the repo**.
 
 ## What's inside
 

@@ -26,7 +26,31 @@ export function run(argv) {
       console.log(`spec-agent: sync '${manifest.id}' (${manifest.vendors.join(", ")})`);
     });
 
-  program.command("validate").description("(reservado) checa coerência do .spec/").action(() => {});
+  program
+    .command("verify")
+    .description("run the project's gate (checks) and print a human-readable verdict; exits non-zero if blocked (CI/PR)")
+    .action(async () => {
+      const { execSync } = await import("node:child_process");
+      const { runVerify, renderVerdict } = await import("./commands/verify.js");
+      const run = (cmd, cwd) => {
+        try {
+          execSync(cmd, { cwd, stdio: "pipe" });
+          return { ok: true };
+        } catch (e) {
+          const raw = e.stdout?.toString() || e.stderr?.toString() || e.message || "";
+          const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+          const msg =
+            lines.find((l) => /invariant|AssertionError|Error:/i.test(l)) ||
+            lines.find((l) => /^✖|not ok|\bFAIL\b/i.test(l)) ||
+            lines.slice(-1)[0] ||
+            "check failed";
+          return { ok: false, detail: msg.replace(/^AssertionError \[[^\]]+\]:\s*/, "") };
+        }
+      };
+      const result = runVerify({ cwd: process.cwd(), run });
+      console.log(renderVerdict(result));
+      process.exit(result.verdict === "PASSED" ? 0 : 1);
+    });
 
   program.parse(argv);
 }

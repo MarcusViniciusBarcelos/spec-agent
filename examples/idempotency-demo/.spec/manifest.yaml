@@ -1,0 +1,8 @@
+id: idempotency-demo
+vendors:
+  - claude
+engine_version: 0.1.0
+# The gate. `spec-agent verify` runs these; "done" requires they all pass.
+checks:
+  - name: domain contract
+    cmd: node --test

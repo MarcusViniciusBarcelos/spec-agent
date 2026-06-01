@@ -14,7 +14,8 @@ export async function runInit({ cwd, id, vendors, engineDir = DEFAULT_ENGINE }) 
   const engine = loadEngine(engineDir);
   const loss = {};
   for (const v of vendors) loss[v] = lossReport(v);
-  const manifest = { id, vendors, engine_version: "0.1.0", loss_report: loss };
+  // `checks` is the gate `spec-agent verify` runs — edit to fit your project.
+  const manifest = { id, vendors, engine_version: "0.1.0", checks: [{ name: "tests", cmd: "npm test" }], loss_report: loss };
   scaffoldProject(cwd, manifest);
   for (const v of vendors) {
     const out = project(engine, manifest, v);
