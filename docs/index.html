@@ -167,6 +167,23 @@ agent finishes a change
   </div>
 </section>
 
+<section id="ci">
+  <div class="wrap">
+    <h2>CI / pull requests</h2>
+    <h3 class="big">Make "done" enforceable, not a vibe</h3>
+    <p class="lead"><code>spec-agent verify</code> runs your project's gate and prints a verdict that reads like a code review — green in CI, blocking on a PR, non-zero exit when blocked.</p>
+<pre><span class="c"># .github/workflows/spec-agent.yml</span>
+- run: npx @marcusbarcelos/spec-agent verify</pre>
+<pre style="color:#fca5a5;border-color:rgba(248,113,113,.32)">SPEC-AGENT VERDICT: BLOCKED
+
+  ✗ domain contract  node --test
+      idempotency invariant failed: duplicate ledger entry for sale-1
+
+Blocked: 1 check(s) failed. Fix and re-run `spec-agent verify`.</pre>
+    <p class="muted">The checks live in <code>.spec/manifest.yaml</code> — your tests, lint, typecheck, any command. This is where spec-agent stops being an assistant and becomes the <strong>guardian of the repo</strong>. Runnable demo: <a href="https://github.com/MarcusViniciusBarcelos/spec-agent/tree/main/examples/idempotency-demo">examples/idempotency-demo</a>.</p>
+  </div>
+</section>
+
 <section id="agents">
   <div class="wrap">
     <h2>Works with your agent</h2>
@@ -193,7 +210,10 @@ agent finishes a change
 npx @marcusbarcelos/spec-agent init --id my-project --agents claude,agents-md
 
 <span class="c"># re-project adapters when the engine evolves (never touches your durable state)</span>
-npx @marcusbarcelos/spec-agent sync</pre>
+npx @marcusbarcelos/spec-agent sync
+
+<span class="c"># run the gate yourself (CI / PR) — verdict + non-zero exit if blocked</span>
+npx @marcusbarcelos/spec-agent verify</pre>
     <p class="lead">Requires Node ≥ 20. The harness runs <strong>inside the coding agent you already use</strong>.</p>
   </div>
 </section>
