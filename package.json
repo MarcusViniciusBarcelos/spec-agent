@@ -1,6 +1,6 @@
 {
   "name": "@marcusbarcelos/spec-agent",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Stop your coding agent from shipping broken code — a verification gate, project rules, and durable learning for Claude Code, Copilot, Cursor, and Codex. Installs via npx; runs alongside your agent.",
   "type": "module",
   "bin": { "spec-agent": "bin/spec-agent.js" },
