@@ -33,9 +33,10 @@ export function run(argv) {
       const { execSync } = await import("node:child_process");
       const { runVerify, renderVerdict } = await import("./commands/verify.js");
       const run = (cmd, cwd) => {
+        const t0 = Date.now();
         try {
           execSync(cmd, { cwd, stdio: "pipe" });
-          return { ok: true };
+          return { ok: true, ms: Date.now() - t0 };
         } catch (e) {
           const raw = e.stdout?.toString() || e.stderr?.toString() || e.message || "";
           const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -44,7 +45,7 @@ export function run(argv) {
             lines.find((l) => /^✖|not ok|\bFAIL\b/i.test(l)) ||
             lines.slice(-1)[0] ||
             "check failed";
-          return { ok: false, detail: msg.replace(/^AssertionError \[[^\]]+\]:\s*/, "") };
+          return { ok: false, detail: msg.replace(/^AssertionError \[[^\]]+\]:\s*/, ""), ms: Date.now() - t0 };
         }
       };
       const result = runVerify({ cwd: process.cwd(), run });

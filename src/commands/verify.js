@@ -21,7 +21,7 @@ export function runVerify({ cwd, run, checks }) {
 
   const results = list.map((c) => {
     const r = run(c.cmd, cwd);
-    return { name: c.name, cmd: c.cmd, ok: !!r.ok, detail: r.detail };
+    return { name: c.name, cmd: c.cmd, ok: !!r.ok, detail: r.detail, ms: r.ms };
   });
   const failed = results.filter((r) => !r.ok);
   return { verdict: failed.length ? "BLOCKED" : "PASSED", results, failed };
@@ -40,5 +40,11 @@ export function renderVerdict({ verdict, results, failed }) {
       ? "Done means verified."
       : `Blocked: ${failed.length} check(s) failed. Fix and re-run \`spec-agent verify\`.`
   );
+  // Honest local metrics — only what's actually measured this run (no invented numbers).
+  const total = results.length;
+  const ms = results.reduce((a, r) => a + (r.ms || 0), 0);
+  const dur = ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+  out.push("");
+  out.push(`Run summary: ${total} check${total === 1 ? "" : "s"} · ${failed.length} blocked · ${total - failed.length} passed · ${dur}`);
   return out.join("\n");
 }

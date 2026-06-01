@@ -11,6 +11,7 @@ test("verify BLOCKS when a check fails and names the reason", () => {
   expect(out).toMatch(/VERDICT: BLOCKED/);
   expect(out).toMatch(/idempotency invariant failed/);
   expect(out).toMatch(/re-run `spec-agent verify`/);
+  expect(out).toMatch(/Run summary: 1 check · 1 blocked · 0 passed/);
 });
 
 test("verify PASSES when all checks pass", () => {
