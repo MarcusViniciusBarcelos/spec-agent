@@ -13,13 +13,13 @@
 
 ```bash
 # scaffolda .spec/ + adapters no repo atual
-npx spec-agent init --id meu-projeto --agents claude,agents-md
+npx @marcusbarcelos/spec-agent init --id meu-projeto --agents claude,agents-md
 
 # re-projeta os adapters quando o engine evolui (não toca seu estado durável)
-npx spec-agent sync
+npx @marcusbarcelos/spec-agent sync
 
 # adiciona um agente depois do init (re-projeta tudo, preserva seu estado durável)
-npx spec-agent sync --agents copilot
+npx @marcusbarcelos/spec-agent sync --agents copilot
 ```
 
 Pré-requisito: Node ≥ 20.
