@@ -1,82 +1,82 @@
-# council bench v2 — orquestração multi-agente (in-environment)
+# council bench v2 — multi-agent orchestration (in-environment)
 
-> Método: rodado **dentro de um agente de código** (Claude Code, modelo `haiku`), via subagents isolados. Cada subagent foi instruído a NÃO usar ferramentas nem ler arquivos (decisão pura, sem exploração de codebase que contaminaria a comparação). Compara **single-pass** (1 agente decide) vs **council** (N personas independentes + chairman sintetiza).
+> Method: run **inside a coding agent** (Claude Code, `haiku` model), via isolated subagents. Each subagent was told NOT to use tools or read files (a pure decision, no codebase exploration that would contaminate the comparison). Compares **single-pass** (one agent decides) vs **council** (N independent personas + a chairman synthesizes).
 
-## A pergunta
+## The question
 
-O council multi-persona entrega diferencial mensurável sobre um único pass do mesmo modelo? Em quê?
+Does the multi-persona council deliver a measurable differential over a single pass of the same model? In what?
 
-## Suite v2 — 5 decisões com falha SUTIL
+## Suite v2 — 5 decisions with a SUBTLE flaw
 
-Diferente da v1 (falhas de manual: deadlock/N+1/race, que o single-pass mata trivialmente), a v2 usa falhas sutis onde um pass plausivelmente erra — **mais 1 controle são** (tradeoff conscientemente aceito, que NÃO deve ser rejeitado):
+Unlike v1 (textbook flaws: deadlock / N+1 / race, which a single pass kills trivially), v2 uses subtle flaws where a single pass plausibly errs — **plus 1 sound control** (a consciously-accepted trade-off that should NOT be rejected):
 
-| # | decisão | tipo | falha embutida |
+| # | decision | type | embedded flaw |
 |---|---|---|---|
-| S1 | idempotência por hash de conteúdo (valor+data) | falha | dois pagamentos legítimos iguais colidem; chave devia vir do cliente |
-| S2 | cache de uma cotação com chave (cliente, produto) | falha | chave omite valor/prazo → resultado errado servido |
-| S3 | notify-then-commit (publica antes de commitar) | falha | se commit falha após publish, operador notificado sem ticket na fila |
-| S4 | paginação por OFFSET | falha | inserts concorrentes → saltos/duplicatas; cursor/keyset resolve |
-| S5 | **UUID v4 como PK (tradeoff são)** | **controle** | **nenhuma — tradeoff legítimo; rejeitar = over-flag** |
+| S1 | idempotency by content hash (amount + date) | flaw | two legitimate equal payments collide; the key should come from the client |
+| S2 | cache a quote with key (customer, product) | flaw | the key omits amount/term → a wrong result is served |
+| S3 | notify-then-commit (publish before committing) | flaw | if the commit fails after the publish, the operator is notified but there's no ticket in the queue |
+| S4 | OFFSET pagination | flaw | concurrent inserts → skips/duplicates; cursor/keyset fixes it |
+| S5 | **UUID v4 as PK (sound trade-off)** | **control** | **none — a legitimate trade-off; rejecting it = over-flag** |
 
-## Resultado
+## Result
 
-### Detecção de falha — SEM headroom
+### Flaw detection — NO headroom
 
-Single-pass haiku pegou **4/4** das falhas sutis (S1–S4), com diagnóstico correto e fix recomendado em cada uma. O council pegaria também, mas **não adiciona nada mensurável** aqui: o modelo base já é capaz demais nessa faixa. (Mesma lição da v1 e do bench de código: diferencial de detecção é difícil de mostrar quando o modelo base é forte.)
+Single-pass haiku caught **4/4** of the subtle flaws (S1–S4), with a correct diagnosis and recommended fix for each. The council would catch them too, but **adds nothing measurable** here: the base model is already too capable in this band. (Same lesson as v1 and the code benchmark: a detection differential is hard to show when the base model is strong.)
 
-### Calibração — diferencial DEMONSTRADO (a virada)
+### Calibration — differential DEMONSTRATED (the twist)
 
-O sinal novo está no **controle S5**:
+The new signal is in the **control, S5**:
 
-| condição | custo | veredito S5 (tradeoff são) | correto? |
+| condition | cost | verdict on S5 (sound trade-off) | correct? |
 |---|---|---|---|
-| **single-pass ingênuo** | 1× | **REJEITOU** — "use auto-increment" | ❌ over-flag |
-| **single-pass self-debate** | 1× | **REJEITOU** — "premature optimization" | ❌ over-flag |
-| **council** (4 personas + chairman) | 5× | **APROVOU com ressalvas** | ✅ calibrado |
+| **naive single-pass** | 1× | **REJECTED** — "use auto-increment" | ❌ over-flag |
+| **single-pass self-debate** | 1× | **REJECTED** — "premature optimization" | ❌ over-flag |
+| **council** (4 personas + chairman) | 5× | **APPROVED with caveats** | ✅ calibrated |
 
-Personas do council em S5: `executor` aprovou (KISS, standard de mercado), `expansionista` aprovou (destrava sharding/geração no cliente), `arquitetura` aprovou com ressalvas (documentar imutabilidade + `created_at` + teste de índice), `contrário` levantou riscos mas propôs **híbrido** (UUID público / int no core quente) — não vetou. O **chairman** sintetizou: **APROVAR**, absorvendo a mitigação do contrário como risco residual em vez de bloquear.
+Council personas on S5: `executor` approved (KISS, industry standard), `expansionist` approved (unlocks sharding / client-side ID generation), `architecture` approved with caveats (document immutability + add `created_at` + index perf test), `contrarian` raised risks but proposed a **hybrid** (UUID for public domains / int for the hot core) — didn't veto. The **chairman** synthesized: **APPROVE**, absorbing the contrarian's mitigation as a residual risk instead of blocking.
 
-**O teste decisivo (o que justifica os 5×):** tentei replicar a calibração no custo 1× — um único agente instruído a fazer **steelman dos dois lados** E perguntar explicitamente "isto é um tradeoff conscientemente aceito?". **Ainda rejeitou** (over-flag). O viés de aversão a risco que dirige a rejeição ingênua **também dirige o passo de decisão** do self-debate — um contexto único tem uma voz só; argumentar consigo mesmo não escapa do próprio prior. O council funciona porque cada persona **commita** numa função-objetivo distinta (executor=KISS, expansionista=opcionalidade futura) e o chairman agrega commitments genuínos, não o hedge de um modelo só.
+**The decisive test (what justifies the 5×):** I tried to replicate the calibration at 1× cost — a single agent told to **steelman both sides** AND ask explicitly "is this a consciously-accepted trade-off?". It **still rejected** (over-flag). The risk-aversion that drives the naive rejection **also drives the decision step** of the self-debate — a single context has one voice; arguing with itself doesn't escape its own prior. The council works because each persona **commits** to a distinct objective function (executor = KISS, expansionist = future optionality) and the chairman aggregates genuine commitments, not one model's hedge.
 
-**A leitura:** o diferencial do council não é pegar mais falhas (single-pass faz 4/4) — é **evitar o falso-bloqueio (over-flag) num tradeoff consciente**, e esse diferencial específico **resistiu à replicação barata**. É a única dimensão onde os 5× compraram algo que 1× não compra.
+**The reading:** the council's differential isn't catching more flaws (single-pass goes 4/4) — it's **avoiding the false block (over-flag) on a conscious trade-off**, and that specific differential **resisted cheap replication**. It's the one dimension where 5× bought something 1× couldn't.
 
-## Controles sãos adicionais — n=4 (sinal sólido)
+## Additional sound controls — n=4 (solid signal)
 
-Para sair do n=1, rodei +3 tradeoffs legítimos (aprovar = certo; rejeitar = over-flag), cada um nas 3 condições:
+To move past N=1, I ran 3 more legitimate trade-offs (approve = right; reject = over-flag), each across the 3 conditions:
 
-| tradeoff são | naive 1× | self-debate 1× | council 5× |
+| sound trade-off | naive 1× | self-debate 1× | council 5× |
 |---|---|---|---|
-| S5 · UUID v4 como PK | REJEITAR ❌ | REJEITAR ❌ | APROVAR ✅ |
-| C1 · réplica de leitura c/ lag ~5s | APROVAR ✅ | APROVAR ✅ | APROVAR ✅ |
-| C2 · denormalizar `customer_name` em `orders` | APROVAR ✅ | **REJEITAR ❌** | APROVAR ✅ |
-| C3 · try/except em notify acessório | APROVAR ✅ | APROVAR ✅ | APROVAR ✅ |
-| **taxa de over-flag (menor=melhor)** | **1/4** | **2/4** | **0/4** |
+| S5 · UUID v4 as PK | REJECT ❌ | REJECT ❌ | APPROVE ✅ |
+| C1 · read replica with ~5s lag | APPROVE ✅ | APPROVE ✅ | APPROVE ✅ |
+| C2 · denormalize `customer_name` into `orders` | APPROVE ✅ | **REJECT ❌** | APPROVE ✅ |
+| C3 · try/except around an accessory notify | APPROVE ✅ | APPROVE ✅ | APPROVE ✅ |
+| **over-flag rate (lower = better)** | **1/4** | **2/4** | **0/4** |
 
-Três achados, todos honestos:
+Three findings, all honest:
 
-1. **Council 0/4 — calibração perfeita nos sãos.** Nunca bloqueou um tradeoff legítimo. Vindica o diferencial de S5 num n maior.
-2. **O over-flag do single-pass é real mas intermitente (naive 1/4).** Depende de quão *carregado de dogma* é o tradeoff: UUID-vs-int (S5) é tópico de guerra-santa → over-flag. Réplica (C1) e try/except-acessório (C3) são pouco-dogmáticos → passaram. Denormalização (C2) é carregado → naive acertou, mas o self-debate tropeçou.
-3. **A correção barata (self-debate) PIORA, não melhora (2/4).** Mandar o modelo "defender os dois lados" num contexto único **surfou mais objeções** e o empurrou pra rejeição (C2: naive aprovou, self-debate rejeitou). Não dá pra *conversar* um modelo único pra fora do over-flag — precisa de perspectivas que **commitam** de verdade. Isso fortalece o caso de que a calibração exige a estrutura multi-agente, não mais deliberação.
+1. **Council 0/4 — perfect calibration on the sound ones.** Never blocked a legitimate trade-off. Vindicates the S5 differential at a larger n.
+2. **The single-pass over-flag is real but intermittent (naive 1/4).** It depends on how *dogma-charged* the trade-off is: UUID-vs-int (S5) is a holy-war topic → over-flag. Read replica (C1) and try/except-accessory (C3) are low-dogma → they passed. Denormalization (C2) is charged → naive got it right, but self-debate tripped.
+3. **The cheap fix (self-debate) makes it WORSE, not better (2/4).** Telling the model to "argue both sides" in a single context **surfaced more objections** and pushed it toward rejection (C2: naive approved, self-debate rejected). You can't *talk* a single model out of over-flagging — it needs perspectives that genuinely **commit**. That strengthens the case that calibration requires the multi-agent structure, not more deliberation.
 
-## Conclusão (n=4)
+## Conclusion (n=4)
 
-O council **não é bloat** no eixo de calibração: **0/4** over-flag vs naive **1/4** vs self-debate **2/4**, e a alternativa barata **degrada** em vez de replicar. Mas a **magnitude é modesta**: o single-pass ingênuo só erra ~1 em 4 tradeoffs sãos, e só nos *carregados de dogma*. Tradução operacional:
+The council **isn't bloat** on the calibration axis: **0/4** over-flag vs naive **1/4** vs self-debate **2/4**, and the cheap alternative **degrades** instead of replicating. But the **magnitude is modest**: the naive single-pass only errs on ~1 in 4 sound trade-offs, and only on the *dogma-charged* ones. Operational translation:
 
-> O council paga os 5× **só** quando a decisão é (a) ambígua/dogma-charged E (b) o custo de um falso-bloqueio é alto (matar um tradeoff legítimo = retrabalho, over-engineering imposto, atraso). Fora disso — detecção de falha, decisão clara, tradeoff pouco-polêmico — é desperdício. Reforça a fronteira do manifesto (council só em planning/escalada) e sugere estreitá-la ainda mais: *tradeoffs arquiteturais ambíguos e polêmicos*, não toda decisão de planning.
+> The council pays its 5× **only** when the decision is (a) ambiguous / dogma-charged AND (b) the cost of a false block is high (killing a legitimate trade-off = rework, imposed over-engineering, delay). Otherwise — flaw detection, clear decisions, low-controversy trade-offs — it's waste. This reinforces the manifest's boundary (council only in planning/escalation) and suggests narrowing it further: *ambiguous, controversial architectural trade-offs*, not every planning decision.
 
-**Ressalva mantida:** decisões em **isolamento** (sem tools/codebase) maximizam o sinal de over-flag; numa sessão real de planning, o contexto do projeto pode recalibrar o single-pass. E "aprovar = certo" nos 4 controles é julgamento meu como autor — mas os 4 são tradeoffs uncontroversially sãos.
+**Caveat kept:** decisions in **isolation** (no tools/codebase) maximize the over-flag signal; in a real planning session, project context may recalibrate the single pass. And "approve = right" on the 4 controls is my own judgment as the author — but all 4 are uncontroversially sound trade-offs.
 
-## Custo
+## Cost
 
-- single-pass: ~82k tokens / decisão.
-- council (4 personas + chairman): ~412k tokens / decisão (**~5×**).
+- single-pass: ~82k tokens / decision.
+- council (4 personas + chairman): ~412k tokens / decision (**~5×**).
 
-O valor de calibração só paga 5× em **decisões de alto risco e ambíguas**, onde um falso-bloqueio é caro (retrabalho, over-engineering imposto, oportunidade perdida). Em decisão trivial ou claramente errada, o single-pass basta — e é por isso que o manifesto invoca council **só em planning/escalada**, não por turno.
+The calibration value only pays 5× on **high-risk, ambiguous decisions** where a false block is expensive (rework, imposed over-engineering, lost opportunity). On a trivial or clearly-wrong decision, the single pass is enough — which is why the manifest invokes the council **only in planning/escalation**, not per turn.
 
-## Ressalvas honestas
+## Honest caveats
 
-- **n=1 controle**: o "over-flag corrigido" é um ponto único. O que vale é a **direção** (valor do council = calibração anti-over-flag), não uma taxa quantificada. Mais controles sãos dariam variância real.
-- **Modelo capaz** (haiku): num modelo mais fraco, o council provavelmente recuperaria *também* em detecção, não só em calibração.
-- Decisão isolada (sem ferramentas) é o teste limpo da deliberação; numa tarefa real, exploração de codebase muda o jogo (e foi o que contaminou o "controle" da v1).
+- **N=1 control** (originally): the "corrected over-flag" was a single point; the n=4 controls above turn the *direction* (council value = anti-over-flag calibration) into a solid signal, not a quantified rate.
+- **Capable model** (haiku): on a weaker model, the council would probably recover *also* in detection, not just calibration.
+- An isolated decision (no tools) is the clean test of deliberation; on a real task, codebase exploration changes the game.
 
-**Entregável real:** confirmação honesta de que a orquestração council tem um diferencial **específico e localizável** (calibração / anti-over-flag em decisão ambígua de alto risco), distinto do gate de verificação (que pega erro de implementação). Os dois cobrem falhas diferentes — não competem.
+**Real deliverable:** an honest confirmation that council orchestration has a **specific, localizable** differential (calibration / anti-over-flag on high-risk ambiguous decisions), distinct from the verification gate (which catches implementation errors). The two cover different failures — they don't compete.
