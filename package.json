@@ -1,6 +1,6 @@
 {
   "name": "@marcusbarcelos/spec-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Governed, vendor-agnostic AI agent harness — scaffolds council, context-economy, project-learning, skill-forge and a verification gate into any repo via npx, projecting adapters for any vendor (Claude Code, AGENTS.md, Copilot).",
   "type": "module",
   "bin": { "spec-agent": "bin/spec-agent.js" },
