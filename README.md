@@ -16,6 +16,8 @@ It's not another prompt framework. It's the **governance layer** that's left whe
 
 The agent says "done." The gate says "not yet." It's a deterministic checkpoint between your agent finishing and the code landing — not a prompt.
 
+[![spec-agent: done should mean verified](https://asciinema.org/a/yO1ABlT2IFMdCOuV.svg)](https://asciinema.org/a/yO1ABlT2IFMdCOuV)
+
 ```
 agent finishes a change
         │
