@@ -25,6 +25,9 @@
   ],
   "author": "Marcus Vinicius Barcelos",
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/MarcusViniciusBarcelos/spec-agent.git" },
+  "homepage": "https://marcusviniciusbarcelos.github.io/spec-agent/",
+  "bugs": { "url": "https://github.com/MarcusViniciusBarcelos/spec-agent/issues" },
   "files": ["bin", "src", "README.md", "LICENSE"],
   "dependencies": {
     "commander": "^12.1.0",
